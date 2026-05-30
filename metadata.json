@@ -1,0 +1,8 @@
+{
+  "name": "Confort Immobilier Contract Generator",
+  "description": "A platform for real estate companies to generate and manage apartment sales contracts with automated document generation and Arabic RTL support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts == request.time || ts is string;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // --- Entity Validations ---
+    function isValidContract(data) {
+      return isSignedIn() && data.userId == request.auth.uid;
+    }
+
+    function isValidConfig(data) {
+      return data.keys().hasAll(['clauses']) &&
+             data.clauses is list &&
+             data.clauses.size() <= 100;
+    }
+
+    // --- Collection Routes ---
+
+    match /contracts/{contractId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      allow create: if isSignedIn() && 
+                      isValidContract(incoming());
+      
+      allow update: if isSignedIn() && 
+                      (existing().userId == request.auth.uid || isAdmin()) &&
+                      isValidContract(incoming());
+
+      allow delete: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /projects/{projectId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin()) && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /notaries/{notaryId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin()) && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /config/{configId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn(); // In a real app, only admins would write this.
+    }
+
+    match /serials/{serialId} {
+      allow get: if true; 
+      allow list: if false;
+      allow write: if isSignedIn();
+    }
+  }
+}

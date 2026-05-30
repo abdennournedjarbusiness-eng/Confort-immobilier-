@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;700&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: "Cairo", "Amiri", serif;
+  
+  --color-brand-bg: #0F1115;
+  --color-brand-card: #15181E;
+  --color-brand-input: #1A1D24;
+  --color-brand-sidebar: #12141A;
+  --color-brand-accent: #f59e0b; /* amber-500 */
+}
+
+@layer base {
+  body {
+    @apply font-sans text-slate-100 bg-brand-bg;
+  }
+  
+  .rtl {
+    direction: rtl;
+    text-align: right;
+  }
+  
+  /* Contract Print Styles - Keep these mostly white for readability when printed */
+  .contract-page {
+    width: 210mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    padding: 25mm 25mm 32mm 25mm !important;
+    margin: 10mm auto;
+    background: white !important;
+    color: black !important;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    box-sizing: border-box !important;
+    position: relative !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .contract-page, .contract-page * {
+    line-height: 1.15 !important;
+    color: #000000 !important;
+  }
+
+  .contract-footer {
+    position: absolute !important;
+    bottom: 12mm !important;
+    left: 25mm !important;
+    right: 25mm !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: 10 !important;
+    display: block !important;
+  }
+
+  @media print {
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    body {
+      background: white !important;
+      color: black !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .no-print {
+      display: none !important;
+    }
+    .contract-page {
+      margin: 0 !important;
+      padding: 25mm 25mm 32mm 25mm !important;
+      box-shadow: none !important;
+      width: 210mm !important;
+      height: 297mm !important;
+      max-height: 297mm !important;
+      page-break-after: always !important;
+      page-break-inside: avoid !important;
+      position: relative !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+      box-sizing: border-box !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+}

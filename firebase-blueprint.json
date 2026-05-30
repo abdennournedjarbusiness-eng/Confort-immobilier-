@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "Contract": {
+      "title": "Contract",
+      "description": "Represents a real estate contract for an apartment unit.",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "idNumber": { "type": "string" },
+        "idIssueDate": { "type": "string" },
+        "address": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "apartmentType": { "type": "string" },
+        "floor": { "type": "string" },
+        "building": { "type": "string" },
+        "project": { "type": "string" },
+        "apartmentCode": { "type": "string" },
+        "area": { "type": "string" },
+        "gender": { "type": "string", "enum": ["السيد", "السيدة"] },
+        "idExpiryDate": { "type": "string" },
+        "parking": {
+          "type": "object",
+          "properties": {
+            "exists": { "type": "boolean" },
+            "number": { "type": "string" },
+            "price": { "type": "number" }
+          }
+        },
+        "reservation": {
+          "type": "object",
+          "properties": {
+            "exists": { "type": "boolean" },
+            "date": { "type": "string" },
+            "amount": { "type": "number" }
+          }
+        },
+        "roomCount": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "totalPriceArabic": { "type": "string" },
+        "downPayment": { "type": "number" },
+        "duration": { "type": "string" },
+        "customDuration": { "type": "string" },
+        "isFinished": { "type": "boolean" },
+        "signingDate": { "type": "string" },
+        "notaryName": { "type": "string" },
+        "notaryFee": { "type": "number" },
+        "notaryFeeArabic": { "type": "string" },
+        "promiseOfSaleDate": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["customerName", "apartmentType", "project", "totalPrice", "userId"]
+    },
+    "TemplateConfig": {
+      "title": "TemplateConfig",
+      "description": "Stores editable contract clauses and snippets.",
+      "type": "object",
+      "properties": {
+        "clauses": { "type": "array", "items": { "type": "string" } },
+        "companyHeader": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Represents a real estate project with multiple buildings.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "municipality": { "type": "string" },
+        "buildings": { "type": "array", "items": { "type": "string" } },
+        "floorsCount": { "type": "number" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["name", "location", "municipality", "userId"]
+    },
+    "Notary": {
+      "title": "Notary",
+      "description": "Represents a notary professional.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "gender": { "type": "string", "enum": ["موثق", "موثقة"] },
+        "officeLocation": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "gender", "userId"]
+    }
+  },
+  "firestore": {
+    "contracts": {
+      "schema": "Contract",
+      "description": "Collection of all generated contracts."
+    },
+    "projects": {
+      "schema": "Project",
+      "description": "Collection of managed projects."
+    },
+    "notaries": {
+      "schema": "Notary",
+      "description": "Collection of managed notaries."
+    },
+    "config": {
+      "schema": "TemplateConfig",
+      "description": "Global configuration for the contract templates."
+    },
+    "serials": {
+      "schema": {
+        "title": "Serial",
+        "type": "object",
+        "properties": {
+          "active": { "type": "boolean" },
+          "label": { "type": "string" }
+        }
+      },
+      "description": "License keys for app access."
+    }
+  }
+}
