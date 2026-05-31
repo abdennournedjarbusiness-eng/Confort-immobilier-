@@ -12,6 +12,7 @@ import { convertToArabicWords, convertFloorToOrdinal } from "../lib/numberToArab
 import { convertToFrenchWords, convertFloorToFrenchOrdinal } from "../lib/numberToFrench";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import FrenchContractPages from "./FrenchContractPages";
 
 export interface GroupedClauses {
   general: string[];
@@ -21,6 +22,51 @@ export interface GroupedClauses {
   legalStatus: string[];
   taxes: string[];
   disputes: string[];
+}
+
+export function categorizeClausesFr(clausesList: string[]): GroupedClauses {
+  const groups: GroupedClauses = {
+    general: [],
+    termination: [],
+    halting: [],
+    assignment: [],
+    legalStatus: [],
+    taxes: [],
+    disputes: []
+  };
+
+  clausesList.forEach(clause => {
+    const text = clause.trim();
+    if (!text) return;
+
+    if (text.includes("Tribunal") || text.includes("régis") || text.includes("litige") || text.includes("avenant") || text.includes("modification")) {
+      groups.disputes.push(text);
+    }
+    else if (text.includes("arrêt") || text.includes("impossibilité") || text.includes("faillite") || text.includes("interrompu")) {
+      groups.halting.push(text);
+    }
+    else if (text.includes("décès") || text.includes("héritiers") || text.includes("succession")) {
+      groups.assignment.push(text);
+    }
+    else if (text.includes("assiette foncière") || text.includes("partenariat") || text.includes("permis de construire") || text.includes("statut juridique") || text.includes("foncier")) {
+      groups.legalStatus.push(text);
+    }
+    else if (text.includes("charges") || text.includes("frais") || text.includes("taxes") || text.includes("droits") || text.includes("supportera seul") || text.includes("copropriété")) {
+      groups.taxes.push(text);
+    }
+    else if (text.includes("résiliation") || text.includes("défaut") || text.includes("retenue") || text.includes("résoudre")) {
+      groups.termination.push(text);
+    }
+    else {
+      groups.general.push(text);
+    }
+  });
+
+  if (groups.taxes.length === 0) {
+    groups.taxes.push("L’Acquéreur supportera seul, à titre exclusif et définitif, l'intégralité des frais, droits et taxes liés à la passation des actes et au transfert de propriété, y compris sans limitation : les honoraires du notaire, les droits d’enregistrement fiscal, les frais de publicité foncière auprès de la Conservation Foncière et les charges de copropriété.");
+  }
+
+  return groups;
 }
 
 export function categorizeClauses(clausesList: string[]): GroupedClauses {
@@ -85,8 +131,48 @@ export default function ContractPrint() {
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<"burgundy" | "royal">("burgundy");
-  const [language, setLanguage] = useState<"ar" | "fr">("ar");
   const isRoyal = selectedTemplate === "royal";
+  const [language, setLanguage] = useState<"ar" | "fr">("ar");
+
+  const getPartnershipClauseTextFr = () => {
+    const landOwnerName = contract?.landOwnerName || projectDetails?.landOwnerName;
+    const landOwnerGender = contract?.landOwnerGender || projectDetails?.landOwnerGender || "السيد";
+    const partnershipNotaryName = contract?.partnershipNotaryName || projectDetails?.partnershipNotaryName;
+    const partnershipNotaryGender = contract?.partnershipNotaryGender || projectDetails?.partnershipNotaryGender || "موثق";
+    const partnershipDate = contract?.partnershipDate || projectDetails?.partnershipDate;
+    const partnershipContractNumber = contract?.partnershipContractNumber || projectDetails?.partnershipContractNumber;
+
+    const prefixOwner = landOwnerGender === "السيد" || landOwnerGender === "Monsieur" ? "M." : "Mme";
+
+    if (landOwnerName) {
+      let partnerDetails = `conclu en la forme authentique par-devant Maître ${partnershipNotaryName || "[Notaire]"}`;
+      if (partnershipDate) partnerDetails += ` en date du ${partnershipDate}`;
+      if (partnershipContractNumber) partnerDetails += `, enregistré sous le numéro ${partnershipContractNumber}`;
+      partnerDetails += `, avec le propriétaire d'origine du terrain, ${prefixOwner} ${landOwnerName}`;
+
+      return `Le Promoteur Immobilier déclare de manière solennelle et contractuelle que l'assiette foncière objet de la construction relève d'un au titre d'un contrat de partenariat ${partnerDetails}. Le Promoteur s’engage à notifier sans délai l'Acquéreur de toute modification affectant le permis de construire ou le statut juridique et financier du projet.`;
+    }
+    return "Le Promoteur Immobilier déclare de manière solennelle et contractuelle que l'assiette foncière objet de la construction relève d'un contrat de partenariat notarié et publié conclu avec le propriétaire d'origine du terrain. Le Promoteur s’engage à notifier sans délai l'Acquéreur de toute modification affectant le permis de construire ou le statut juridique et financier du projet.";
+  };
+
+  const getFrenchClausesList = (): string[] => {
+    return [
+      "Le Promoteur Immobilier s’engage à édifier l'appartement conformément aux caractéristiques sus-indiquées, et à achever les travaux dans les délais prescrits. En cas de retard résultant d'un cas de force majeure, le Promoteur est tenu d’en conseiller et d’en informer l'Acquéreur préalablement par écrit, en spécifiant les motifs légitimes d'approvisionnement et la durée exacte de la prorogation.",
+      "Pénalités de retard : En cas de dépassement des délais de livraison par le Promoteur Immobilier d’une période supérieure à trois (03) mois par rapport à la date convenue contractuellement, l’Acquéreur est en droit de réclamer des pénalités de retard d’un taux de 0.5% du prix net global d'acquisition pour chaque mois de retard.",
+      "La livraison du bien ne sera considérée comme parfaite, libératoire et juridiquement opposable qu'après réalisation complète du raccordement effectif de l'unité immobilière aux réseaux d'utilité publique, notamment l'eau potable, l'électricité, le gaz de ville et le réseau d'assainissement collectif.",
+      "Le Promoteur Immobilier s’engage à permettre à l'Acquéreur de constater périodiquement l'état d'avancement des travaux de finition intérieure et extérieure de la construction, sous réserve d'une notification préalable, et de lui présenter un rapport de situation sur simple demande motivée.",
+      "En cas de retard de livraison non imputable à un cas de force majeure et excédant une période contractuelle de six (06) mois, l’Acquéreur est fondé à exiger la résiliation immédiate du présent contrat, ouvrant droit à la restitution intégrale de toutes les sommes versées par lui à ce titre, sans qu'un acheteur substitut ne puisse être exigé. Le remboursement direct constitue une obligation financière immédiate opposable au Promoteur Immobilier de plein droit.",
+      "En cas de défaut de paiement par l’Acquéreur de l'une quelconque des échéances de paiement convenues dans le calendrier financier, à l'expiration d'un délai de 30 jours calendaires à compter de la mise en demeure officielle avec accusé de réception restée infructueuse, le Promoteur Immobilier aura la faculté de prononcer la résiliation de plein droit du présent contrat, après apurement financier, impliquant la restitution des sommes versées déduites d'une pénalité administrative et d'une indemnité forfaitaire de 5% au titre des frais administratifs et marketing.",
+      "En cas d'arrêt définitif des travaux d'aménagement de l'immeuble ou d’impossibilité de poursuivre ou de parfaire le programme immobilier pour quelque motif légal ou technique que ce soit, la société promotrice s'engage formellement à restituer à l’Acquéreur la plénitude de tous les versements financiers perçus et ce dans un délai de rigueur ne pouvant excéder quatre-vingt-dix (90) jours, sans préjudice de toutes indemnités légales et contractuelles dues conformément au Code civil et la Loi 11-04 régulant la promotion immobilière en Algérie.",
+      "Le présent document d'avenant constitue un accord à caractère technique et financier contractuel accessoire, faisant partie intégrante de la convention initiale de réservation et de l'acte notarié de promesse de vente, et ne saurait en aucun cas être interprété ou appliqué de façon autonome.",
+      "En cas de décès de l’Acquéreur, l'ensemble des obligations financières et les droits réels afférents au présent contrat sont transmis automatiquement et sans interruption au profit direct de ses héritiers légaux, sur production d'une dévolution successorale (Frédha) authentique et dûment notariée.",
+      getPartnershipClauseTextFr(),
+      "L’Acquéreur s’engage formellement et irrévocablement à s'abstenir de toute disposition juridique ou matérielle sur le bien (vente, constitution d’hypothèque, bail commercial, bail civil ou cession de droits réels) antes/avant d'avoir honoré l’intégralité de la valeur financière convenue et d’avoir signé d’un commun accord le procès-verbal de livraison régulier rédigé de façon bilatérale.",
+      "Le Promoteur Immobilier assume de manière exclusive la charge d’administration, le syndic de copropriété provisoire et l'entretien ainsi que le gardiennage des parties communes de l’immeuble pendant une durée de douze (12) mois consécutifs à compter du procès-verbal de réception livraison finale. L'Acquéreur s’oblige à s'acquitter d'avance de sa participation proportionnelle aux charges de copropriété (ascenseur, éclairage des couloirs et halls, alimentation d'eau collective, hygiène des espaces communs); ces frais n'étant nullement inclus dans le prix d'achat initial de la partie privative.",
+      "Aucune modification, révision unilatérale ou additif ne pourra être apporté aux stipulations du présent document sans l’établissement officiel d'un avenant écrit signé et revêtu de l’empreinte digitale des deux parties en la forme de l'écrit authentique.",
+      "Le présent contrat est régi dans toutes ses dispositions par la législation algérienne en vigueur, particulièrement la loi n° 11-04 régissant l'activité de promotion immobilière. À défaut d'accord amiable intervenu sous trente (30) jours entre le Promoteur et l'Acquéreur, tout litige d’interprétation ou de résolution sera déféré devant la juridiction matériellement et territorialement compétente du Tribunal de Dar El Beïda d'Alger."
+    ];
+  };
 
   const LOGO_URL = logo;
 
@@ -169,102 +255,6 @@ export default function ContractPrint() {
       fetchData();
     }
   }, [id]);
-
-  const getGenderFr = (genderStr: string) => {
-    if (genderStr === "السيدة") return "Mme.";
-    return "M.";
-  };
-
-  const getIdTypeFr = (idTypeStr: string) => {
-    if (idTypeStr === "جواز سفر") return "le Passeport";
-    return "la Carte Nationale d'Identité (CNI)";
-  };
-
-  const getNotaryGenderFr = (genderStr: string) => {
-    if (genderStr === "موثقة") return "Notaire";
-    return "Notaire";
-  };
-
-  const getFloorFr = (floorStr: string) => {
-    return convertFloorToFrenchOrdinal(floorStr);
-  };
-
-  const getPartnershipClauseTextFr = () => {
-    const landOwnerNameFr = contract?.landOwnerNameFr || projectDetails?.landOwnerNameFr || contract?.landOwnerName || projectDetails?.landOwnerName;
-    const landOwnerGenderFr = (contract?.landOwnerGender || projectDetails?.landOwnerGender) === "السيدة" ? "Mme." : "M.";
-    const partnershipNotaryNameFr = contract?.partnershipNotaryNameFr || projectDetails?.partnershipNotaryNameFr || contract?.partnershipNotaryName || projectDetails?.partnershipNotaryName;
-    const partnershipNotaryGenderFr = (contract?.partnershipNotaryGender || projectDetails?.partnershipNotaryGender) === "موثقة" ? "Notaire" : "Notaire";
-    const partnershipDate = contract?.partnershipDate || projectDetails?.partnershipDate;
-    const partnershipContractNumber = contract?.partnershipContractNumber || projectDetails?.partnershipContractNumber;
-
-    if (landOwnerNameFr) {
-      const ownerNode = `${landOwnerGenderFr} ${landOwnerNameFr}`;
-      const notaryNode = partnershipNotaryNameFr 
-        ? ` rédigé par devant l'étude de Me. ${partnershipNotaryNameFr}` 
-        : "";
-      const dateNode = partnershipDate 
-        ? ` en date du ${partnershipDate}` 
-        : "";
-      const numberNode = partnershipContractNumber 
-        ? `, enregistré sous le numéro ${partnershipContractNumber}` 
-        : "";
-      
-      let detailsString = `en vertu d'un contrat de partenariat ${notaryNode}${dateNode}${numberNode} conclu avec le propriétaire d'origine du terrain, ${ownerNode}`;
-      
-      return `Le Promoteur déclare expressément et de manière contraignante que l'assiette foncière objet de l'édification est régie par un acte de partenariat dument notarié et publié, ${detailsString}. Il s'engage en outre à informer l'Acquéreur immédiatement de toute modification affectant le permis de construire ou le statut juridique et financier du projet.`;
-    }
-    return "Le Promoteur déclare expressément et sous son entière responsabilité que l’assiette foncière objet de l’édification est régie par un acte de partenariat dument notarié et publié avec le propriétaire initial du terrain. Il s'engage en outre à informer immédiatement l'Acquéreur de toute modification affectant le permis de construire, le statut juridique ou le plan de financement du bien.";
-  };
-
-  const getTranslationFr = (arClause: string): string => {
-    const clean = arClause.trim();
-    
-    if (clean.includes("يصرح المرقي العقاري بصفة رسمية وملزمة بأن الأرض موضوع التشييد تندرج ضمن إطار عقد شراكة")) {
-      return getPartnershipClauseTextFr();
-    }
-
-    if (clean.includes("يلتزم المرقي العقاري بتشييد الشقة بنفس المواصفات المذكورة سابقا، والالتزام بإنهاء الأشغال في الآجال المحددة") || clean.includes("يلتزم المرقي العقاري بتشييد الشقة بنفس المواصفات المذكورة سابقا")) {
-      return "Le Promoteur Immobilier s’engage à édifier l’appartement conformément aux spécifications techniques susmentionnées, et à achever les travaux dans les délais convenus. En cas de force majeure entraînant un retard, le Promoteur Immobilier est tenu d'en informer préalablement l'Acquéreur par écrit, en précisant les motifs et la durée de la prorogation.";
-    }
-    if (clean.includes("غرامة التأخير: في حالة تجاوز تأخر المرقي العقاري") || clean.includes("في حالة تجاوز تأخر المرقي العقاري في التسليم مدة ثلاثة") || clean.includes("غرامة التأخير")) {
-      return "Pénalités de retard : En cas de retard de livraison imputable au Promoteur Immobilier excédant un délai de trois (03) mois par rapport à la date convenue, l’Acquéreur est en droit de réclamer une pénalité de retard fixée à 0,5% du prix global de vente du bien immobilier par mois de retard.";
-    }
-    if (clean.includes("لا يعتبر التسليم تاماً ومجزياً ونافذاً إلا بعد إتمام ربط الوحدة العقارية بالشبكات الضرورية")) {
-      return "La livraison n'est considérée comme intégrale, valable et effective qu'après le raccordement complet de l'unité immobilière aux réseaux de viabilisation essentiels, notamment l'électricité, le gaz, l'eau potable et l'assainissement.";
-    }
-    if (clean.includes("يلتزم المرقي العقاري بتمكين المشتري من تعيين ومعاينة مراحل إنجاز الأشغال")) {
-      return "Le Promoteur Immobilier s'engage à permettre à l'Acquéreur de visiter et de constater l'avancement des travaux de manière périodique et après coordination préalable, et de lui fournir un rapport détaillé sur l'état d'avancement des constructions à sa demande.";
-    }
-    if (clean.includes("في حال تأخر المرقي العقاري عن التسليم لسبب غير قاهر وتجاوزت مدة التأخير ستة") || clean.includes("شرط توفر زبون بديل")) {
-      return "En cas de retard de livraison pour une cause autre que la force majeure excédant un délai de six (06) mois, l'Acquéreur est en droit de demander la résiliation immédiate du contrat avec la restitution intégrale des sommes versées cumulées aux pénalités de retard exigibles. Cette restitution est expressément dispensée de la condition de l'existence d'un acquéreur de substitution, constituant une obligation financière directe et exécutoire à la charge exclusive du Promoteur Immobilier.";
-    }
-    if (clean.includes("في حال تخلف المشتري عن سداد أي دفعة مستحقة") || clean.includes("أكثر من 30 يوماً من تاريخ إعذاره") || clean.includes("أتعاب تسيير إداري وتسويق")) {
-      return "En cas de défaut de paiement par l’Acquéreur de toute échéance due selon le calendrier financier convenu pendant plus de trente (30) jours à compter de la date de sa mise en demeure écrite transmise par voie légale, le Promoteur Immobilier est en droit de résilier de plein droit le contrat, de liquider le compte et de lui restituer ses fonds après application d'une retenue de 5% au titre de frais de gestion administrative et de commercialisation.";
-    }
-    if (clean.includes("في حالة توقف المشروع نهائياً أو تعذر إتمامه لأي سبب كان") || clean.includes("تلتزم المؤسسة بإعادة كامل المبالغ المدفوعة للمشتري في أجل أقصاه 90") || clean.includes("في حالة توقف المشروع نهائياً")) {
-      return "En cas d'arrêt définitif du projet ou de l'impossibilité absolue de son achèvement pour quelque motif que ce soit, la société s'engage à restituer l'intégralité des sommes versées par l'Acquéreur dans un délai maximal de quatre-vingt-dix (90) jours, avec l'application de toutes les indemnités et garanties en vigueur conformément à la législation et la réglementation de la promotion immobilière.";
-    }
-    if (clean.includes("يعتبر هذا الملحق جزءاً لا يتجزأ من اتفاقية حجز العقار") || clean.includes("ولا يمكن العمل به أو الاحتجاج ببنوده بصفة مستقلة")) {
-      return "La présente annexe fait partie intégrante de la convention de réservation et de la promesse de vente officielle, et ne peut être exécutée ou invoquée indépendamment de celles-ci.";
-    }
-    if (clean.includes("في حال وفاة المشتري، تنتقل") || clean.includes("تنتقل كافة حقوق والتزامات هذا التعاقد بصفة فورية وتلقائية إلى ورثته")) {
-      return "En cas de décès de l'Acquéreur, l'ensemble des droits et obligations découlant de la présente convention est transmis de plein droit et immédiatement à ses héritiers légitimes, sur production d'un acte de notoriété dument notarié.";
-    }
-    if (clean.includes("يلتزم المشتري بعدم التصرف في العقار بأي شكل") || clean.includes("قبل استكمال كامل القيمة المالية المتفق عليها وإمضاء محضر التسليم النهائي")) {
-      return "L'Acquéreur s'engage formellement à s'abstenir de toute disposition sur le bien ou transfert de jouissance sous quelque forme que ce soit (vente, constitution d’hypothèque, bail ou cession réciproque) avant le paiement de l'intégralité du prix financier convenu et la conclusion solennelle du procès-verbal de livraison définitive.";
-    }
-    if (clean.includes("يتولى المرقي العقاري بصفة حصرية إدارة وتسيير الأجزاء المشتركة للإقامة") || clean.includes("ولا تندرج هذه المصاريف نهائياً ضمن السعر الصافي")) {
-      return "Le Promoteur Immobilier assure à titre exclusif l'administration et la gestion des parties communes de la copropriété, ainsi que leur entretien et gardiennage, pour une période d’une année civile (12 mois) à compter de la signature du procès-verbal de livraison définitive. L’Acquéreur s’engage à verser périodiquement et par avance sa quote-part des charges de copropriété (incluant, et sans s'y limiter, l'entretien de l'ascenseur, l'électricité et l'eau des parties communes, la sécurité et le nettoyage) suivant les barèmes fixés par le gestionnaire. Ces frais de copropriété sont strictement exclus du prix net de vente de l'immeuble.";
-    }
-    if (clean.includes("لايجوز إدخال أي تعديل أو تغيير أو إلغاء") || clean.includes("إلا بموجب ملحق عقد رسمي ومكتوب يبرم ويلحق صراحة")) {
-      return "Aucune modification, altération ou annulation d'une disposition de la présente convention ne sera valide qu'en vertu d'un avenant officiel écrit dument signé par les deux parties avec apposition d’empreinte digitale, faisant ainsi corps with la convention d'origine.";
-    }
-    if (clean.includes("يخضع هذا العقد وتفسيره وبنوده للقانون الجزائري") || clean.includes("لا سيما القانون رقم 04-11") || clean.includes("الابتدائية بدار البيضاء")) {
-      return "Le présent contrat, son interprétation et son exécution sont régis par la loi algérienne applicable en matière de promotion immobilière, notamment la loi n° 11-04 du 17 février 2011 fixant les règles régissant l'activité de promotion immobilière. Tout litige qui ne pourrait être résolu à l’amiable dans un délai de trente (30) jours sera soumis à la compétence exclusive du tribunal de Dar El Beïda, Alger.";
-    }
-
-    return clean;
-  };
 
   const defaultClauses = [
     "يلتزم المرقي العقاري بتشييد الشقة بنفس المواصفات المذكورة سابقا، والالتزام بإنهاء الأشغال في الآجال المحددة لها، وفي حالة التأخير لسبب قاهر يتوجب على المرقي العقاري إعلام المشتري مسبقا بآجال وأسباب التمديد.",
@@ -383,7 +373,9 @@ export default function ContractPrint() {
     return cleanClauseText(normalizeClauseText(text));
   });
 
-  const groupedClauses = categorizeClauses(clauses);
+  const groupedClauses = language === "ar" 
+    ? categorizeClauses(clauses) 
+    : categorizeClausesFr(getFrenchClausesList());
 
   const handlePrint = () => {
     if (!contract) return;
@@ -1181,15 +1173,16 @@ export default function ContractPrint() {
     }, 2000);
   };
 
-  const downloadWord = async () => {
+  const downloadWordFr = async () => {
     if (!contract) return;
     
-    const arCenter = { alignment: AlignmentType.CENTER };
-    const arRight = { alignment: AlignmentType.RIGHT };
     const wordColor = selectedTemplate === "royal" ? "065F46" : "991B1B";
     const totalReceivedVal = contract.reservation?.exists ? (contract.reservation.amount + contract.downPayment) : contract.downPayment;
     const remainingBalanceVal = (contract.totalPrice + (contract.parking?.price || 0)) - totalReceivedVal;
     
+    const ltrLeft = { alignment: AlignmentType.LEFT, rtl: false };
+    const ltrCenter = { alignment: AlignmentType.CENTER, rtl: false };
+
     const docObj = new Document({
       sections: [{
         properties: {
@@ -1220,21 +1213,556 @@ export default function ContractPrint() {
           new Paragraph({ text: "", spacing: { before: 200 } }),
           new Paragraph({
             children: [
-              new TextRun({ text: "CONFORT SERVICES IMMOBILIERS", bold: true, size: 28, color: wordColor }),
+              new TextRun({ text: "CONFORT SERVICES IMMOBILIERS", bold: true, size: 28 }),
             ],
-            alignment: AlignmentType.CENTER,
+            ...ltrCenter,
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "CONFORT IMMOBILIERE", bold: true, size: 20, color: "666666" }),
+              new TextRun({ text: "CONFORT IMMOBILIERE", bold: true, size: 32 }),
             ],
-            alignment: AlignmentType.CENTER,
+            ...ltrCenter,
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Ben Mourad, Bordj El Kiffan, Alger", size: 18, color: "666666" }),
+              new TextRun({ text: "Ben M'rad, Bordj El Kiffan, Alger", size: 24 }),
             ],
-            alignment: AlignmentType.CENTER,
+            ...ltrCenter,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Alger, Algérie", size: 21 }),
+            ],
+            ...ltrCenter,
+          }),
+          
+          new Paragraph({ text: "", spacing: { before: 1800 } }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "AVENANT TECHNIQUE ET FINANCIER AU CONTRAT DE PROMESSE DE VENTE", bold: true, size: 36 }),
+            ],
+            ...ltrCenter,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "(CONVENTION DE RESERVATION D'UN BIEN EN L'ETAT FUTUR D'ACHEVEMENT - VEFA)", bold: true, size: 22 }),
+            ],
+            ...ltrCenter,
+          }),
+
+          new Paragraph({ text: "", spacing: { before: 1800 } }),
+          new Paragraph({
+             children: [
+               new TextRun({ text: "Entre la société Confort Services Immobiliers", size: 32 }),
+             ],
+             ...ltrCenter,
+          }),
+          new Paragraph({
+             children: [
+               new TextRun({ text: `et ${contract.gender === 'السيد' ? 'M.' : 'Mme'}: ${contract.customerName}`, bold: true, size: 40 }),
+             ],
+             ...ltrCenter,
+          }),
+
+          new Paragraph({ text: "", spacing: { before: 1800 } }),
+          new Paragraph({
+             children: [
+               new TextRun({ text: "Le Promoteur Immobilier: ", bold: true }),
+               new TextRun({ text: "E.S.P CONFORT SERVICES IMMOBILIERS, Adresse de direction: Ben M'rad, Bordj El Kiffan, Alger - Algérie, inscrite au registre de commerce sous le N°: 16/01-122 5143817" }),
+             ],
+             ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "NIS: 1989 4710 01019 26" }),
+            ],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "NIF: 18947100101918641601" }),
+            ],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Représentée légalement par son Gérant, M. NADJAR Abdelghani, désigné ci-après \"Promoteur Immobilier\".", bold: true }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          }),
+
+          new Paragraph({ children: [new PageBreak()] }),
+
+          // PAGE 2
+          new Paragraph({
+            children: [new TextRun({ text: "L'Acquéreur", bold: true, size: 32, underline: {} })],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `${contract.gender === 'السيد' ? 'M.' : 'Mme'} `, bold: true }),
+              new TextRun({ text: contract.customerName, bold: true }),
+              new TextRun({ text: ", ci-après désigné(e) \"l'Acquéreur\"." }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 200 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `Titulaire du document: ${contract.idType || "Carte d'identité nationale"} N° ${contract.idNumber}` }),
+            ],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `Délivrée le: ${contract.idIssueDate} avec validité expirant le: ${contract.idExpiryDate}` }),
+            ],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `Adresse: ${contract.address}` }),
+            ],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `- Numéro de Téléphone : ${contract.phoneNumber}` }),
+            ],
+            ...ltrLeft,
+          }),
+          ...(contract.notaryName ? [
+            new Paragraph({
+              children: [
+                new TextRun({ text: `ـ Contrat préliminaire de promesse de vente authentique dressé par-devant Maître ${cleanNotaryName(contract.notaryName)}, Notaire agréé.`, bold: true }),
+              ],
+              ...ltrLeft,
+              spacing: { before: 200 },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: `En date du: ${contract.promiseOfSaleDate || contract.signingDate}` }),
+              ],
+              ...ltrLeft,
+            })
+          ] : []),
+
+          new Paragraph({ text: "", spacing: { before: 400 } }),
+          new Paragraph({
+            children: [new TextRun({ text: "Objet du contrat", bold: true, size: 32, underline: {} })],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Les deux parties conviennent de l'édification par le Promoteur au profit de l'Acquéreur d'un appartement tel que décrit ci-dessous:" }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 200 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Détails du bien : ", bold: true }),
+              new TextRun({ text: `L'appartement de catégorie ${contract.apartmentType}, situé au ${convertFloorToFrenchOrdinal(contract.floor)} dans le bâtiment ${contract.building} au sein de la "Résidence ${getFullProjectInfo(contract.project)}", portant le code unique ${contract.apartmentCode}, d'une surface habitable totale approximative de ${contract.area} m²` }),
+              new TextRun({ text: contract.parking?.exists ? ` comprenant également l'emplacement de stationnement de parking N° ${contract.parking.number} situé au sous-sol du complexe.` : " n'incluant aucun lot d'emplacement de parking au sous-sol de l'immeuble d'habitation." }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 150 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "L'unité immobilière se compose de: " }),
+              new TextRun({ text: `${contract.roomCount > 1 ? `0${contract.roomCount} pièces` : "une seule chambre d'habitation"}, cuisine, salle de bains et cabinets sanitaires WC indépendants.` }),
+            ],
+            ...ltrLeft,
+          }),
+
+          new Paragraph({ text: "", spacing: { before: 400 } }),
+          new Paragraph({
+            children: [new TextRun({ text: "Désignation foncière", bold: true, size: 28, underline: {} })],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `L'immeuble abritant l'appartement susnommé fait partie du plan d'urbanisme de la Commune de: ${getMunicipality(contract.project)}, Wilaya d'Alger.` }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          }),
+
+          new Paragraph({ children: [new PageBreak()] }),
+
+          // PAGE 3
+          new Paragraph({
+            children: [new TextRun({ text: "Prix de l'unité immobilière et calendrier financier", bold: true, size: 32, underline: {} })],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Le prix total et définitif convenu de l'immeuble est fixé à la somme globale de: " }),
+              new TextRun({ text: `${(contract.totalPrice + (contract.parking?.price || 0)).toLocaleString()} DZD`, bold: true }),
+              new TextRun({ text: ` (soit: ${convertToFrenchWords(contract.totalPrice + (contract.parking?.price || 0))} Dinars Algériens).`, italics: true }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 200 },
+          }),
+          ...(contract.notaryFee && contract.notaryFee > 0 ? [
+            new Paragraph({
+              children: [
+                new TextRun({ text: `ـ De même, les honoraires de rédaction du Notaire sont fixés d'un commun accord à: ${contract.notaryFee.toLocaleString()} DZD (soit: ${convertToFrenchWords(contract.notaryFee)} Dinars Algériens).` }),
+              ],
+              ...ltrLeft,
+              spacing: { before: 150 },
+            })
+          ] : []),
+
+          new Paragraph({ text: "", spacing: { before: 200 } }),
+          new Paragraph({
+            children: [new TextRun({ text: "Récapitulatif financier détaillé du transfert :", bold: true, color: wordColor })],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `• Prix de base net de l'appartement: ${contract.totalPrice.toLocaleString()} DZD (${convertToFrenchWords(contract.totalPrice)} DZD).` }),
+            ],
+            ...ltrLeft,
+          }),
+          ...(contract.parking?.exists ? [
+            new Paragraph({
+              children: [
+                new TextRun({ text: `• Prix du lot d'emplacement de parking sous-sol: ${contract.parking.price.toLocaleString()} DZD (${convertToFrenchWords(contract.parking.price)} DZD).` }),
+              ],
+              ...ltrLeft,
+            })
+          ] : []),
+          ...(contract.reservation?.exists ? [
+            new Paragraph({
+              children: [
+                new TextRun({ text: `• Montant d'acompte de réservation encaissé en date du ${contract.reservation.date}: ${contract.reservation.amount.toLocaleString()} DZD (${convertToFrenchWords(contract.reservation.amount)} DZD).` }),
+              ],
+              ...ltrLeft,
+            })
+          ] : []),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `• Versement de downpayment lors de la signature conjointe: ${contract.downPayment.toLocaleString()} DZD (${convertToFrenchWords(contract.downPayment)} DZD).` }),
+            ],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `• CUMUL DES VERSEMENTS ENCAISSÉS À CE JOUR: ${totalReceivedVal.toLocaleString()} DZD (${convertToFrenchWords(totalReceivedVal)} DZD).`, bold: true }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          }),
+          new Paragraph({
+            children: [
+              remainingBalanceVal > 0 
+                ? new TextRun({ text: `• SOLDE RESTANT DÛ EXIGIBLE: ${remainingBalanceVal.toLocaleString()} DZD (${convertToFrenchWords(remainingBalanceVal)} DZD), à régulariser selon le plan financier convenu.`, bold: true, color: "991B1B" })
+                : new TextRun({ text: "• Le montant d’acquisition de l'unité immobilière a été soldé intégralement.", bold: true, color: "065F46" }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          }),
+
+          new Paragraph({ text: "", spacing: { before: 300 } }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "CLAUSE DE FERMETÉ ET RESPONSABILITÉ DES CHARGES FISCAUX D’URBANISME :", bold: true }),
+            ],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Les co-contractants reconnaissent de façon définitive et intangible que le coût net consenti est fixe, forfaitaire, et insusceptible de révision ou d'indexation ultérieure, quelles que soient les fluctuations des coûts économiques et inflationnistes. Celui-ci couvre en exclusivité la propriété privative du logement; l'Acquéreur supportera seul, à titre de frais de mutation et d'actes d'établissement de copropriété: l'ensemble des émoluments notariés prescrits par la loi, les droits d’enregistrement fiscal obligatoires auprès de l'administration publique, les frais légaux d'insinuation et d’inscription foncière, ainsi que ses quote-parts d'entretien des parties communes." }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          }),
+
+          new Paragraph({ children: [new PageBreak()] }),
+
+          // PAGE 4
+          new Paragraph({
+            children: [new TextRun({ text: "Délais d'exécution et spécificités de conformité", bold: true, size: 32, underline: {} })],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "ـ Délais de parfait achèvement: ", bold: true }),
+              new TextRun({ text: `Le Promoteur s'engage à livrer le bien fini à l'Acquéreur dans un d'un délai contractuel de: ${contract.duration}. La remise effective des clés interviendra s'ensuivant la clôture des travaux extérieurs et intérieurs et de la signature d’un procès-verbal de livraison régulier.` }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 200 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "ـ Nature des finitions contractuelles: ", bold: true }),
+              new TextRun({ text: `L'appartement est édifié et livré en l'état de: ${contract.isFinished ? "entièrement fini" : "semi-fini"}. Le Promoteur s’implique à accorder à l'Acquéreur les pleines et entières garanties de construction de nature décennale et biennale prescrits par le cadre législatif et réglementaire de sa profession. L'ouvrage intègre les raccordements réseau intérieurs d'électricité sain (sans équipements terminaux), télésurveillance extérieure, ascenseur opérationnel avec réservoir d'eau d'immeuble disponible.` }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 150 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "ـ Attestation d'examen par l'Acquéreur: ", bold: true }),
+              new TextRun({ text: "L’Acquéreur atteste avoir diligenté un examen oculaire attentif, libre et minutieux de l'assiette matérielle de construction ainsi que de l’implantation topologique générale. Il certifie n’émettre aucune espèce de réserve sur le plan de structure intérieur, plan d'aménagement parcellaire et plan de masse global qui lui ont fait l’objet de communication préalable." }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 150 },
+          }),
+
+          new Paragraph({ children: [new PageBreak()] }),
+
+          // PAGE 5
+          new Paragraph({
+            children: [new TextRun({ text: "Cahier spécial des clauses d'obligations réciproques", bold: true, size: 32, underline: {} })],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "I. COVENANTS ET ENGAGEMENTS DU PROMOTEUR :", bold: true, size: 24, color: wordColor })],
+            ...ltrLeft,
+            spacing: { before: 200 },
+          }),
+          ...groupedClauses.general.map(clause => new Paragraph({
+            children: [
+              new TextRun({ text: "• ", bold: true, color: wordColor }),
+              new TextRun({ text: clause }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          })),
+
+          new Paragraph({
+            children: [new TextRun({ text: "II. CLAUSES RÉSOLUTOIRES ET DÉFAUTS DE PAIEMENT :", bold: true, size: 24, color: wordColor })],
+            ...ltrLeft,
+            spacing: { before: 200 },
+          }),
+          ...groupedClauses.termination.map(clause => new Paragraph({
+            children: [
+              new TextRun({ text: "• ", bold: true, color: wordColor }),
+              new TextRun({ text: clause }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          })),
+
+          new Paragraph({
+            children: [new TextRun({ text: "III. ARRÊT DU PROJET DE CONSTRUCTION :", bold: true, size: 24, color: wordColor })],
+            ...ltrLeft,
+            spacing: { before: 200 },
+          }),
+          ...groupedClauses.halting.map(clause => new Paragraph({
+            children: [
+              new TextRun({ text: "• ", bold: true, color: wordColor }),
+              new TextRun({ text: clause }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          })),
+
+          new Paragraph({ children: [new PageBreak()] }),
+
+          // PAGE 6
+          new Paragraph({
+            children: [new TextRun({ text: "Suite du cahier des clauses d'obligations réciproques", bold: true, size: 32, underline: {} })],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "IV. TRANSMISSION SUCCESSORALE EN CAS DE DÉCÈS :", bold: true, size: 24, color: wordColor })],
+            ...ltrLeft,
+            spacing: { before: 150 },
+          }),
+          ...groupedClauses.assignment.map(clause => new Paragraph({
+            children: [
+              new TextRun({ text: "• ", bold: true, color: wordColor }),
+              new TextRun({ text: clause }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          })),
+
+          new Paragraph({
+            children: [new TextRun({ text: "V. STRUCTURE JURIDIQUE ET PARTENARIAT DU FONCIER :", bold: true, size: 24, color: wordColor })],
+            ...ltrLeft,
+            spacing: { before: 150 },
+          }),
+          ...groupedClauses.legalStatus.map(clause => new Paragraph({
+            children: [
+              new TextRun({ text: "• ", bold: true, color: wordColor }),
+              new TextRun({ text: clause }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          })),
+
+          new Paragraph({
+            children: [new TextRun({ text: "VI. FISCALITÉ ET FRAIS GÉNÉRAUX DE COPROPRIÉTÉ :", bold: true, size: 24, color: wordColor })],
+            ...ltrLeft,
+            spacing: { before: 150 },
+          }),
+          ...groupedClauses.taxes.map(clause => new Paragraph({
+            children: [
+              new TextRun({ text: "• ", bold: true, color: wordColor }),
+              new TextRun({ text: clause }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          })),
+
+          new Paragraph({
+            children: [new TextRun({ text: "VII. RESOLUTION DES DIFFERENDS ET LOI EN VIGUEUR :", bold: true, size: 24, color: wordColor })],
+            ...ltrLeft,
+            spacing: { before: 150 },
+          }),
+          ...groupedClauses.disputes.map(clause => new Paragraph({
+            children: [
+              new TextRun({ text: "• ", bold: true, color: wordColor }),
+              new TextRun({ text: clause }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          })),
+
+          new Paragraph({ children: [new PageBreak()] }),
+
+          // PAGE 7
+          new Paragraph({ text: "", spacing: { before: 400 } }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Fait légalement en toute bonne foi à Bordj El Kiffan, Alger.", bold: true, size: 28 }),
+            ],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "En date du: ", bold: true }),
+              new TextRun({ text: contract.signingDate, bold: true, color: "065F46" }),
+            ],
+            ...ltrLeft,
+            spacing: { before: 100 },
+          }),
+
+          new Paragraph({ text: "", spacing: { before: 1200 } }),
+          new Table({
+            width: {
+              size: 100,
+              type: WidthType.PERCENTAGE,
+            },
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({
+                    width: { size: 50, type: WidthType.PERCENTAGE },
+                    children: [
+                      new Paragraph({
+                        children: [new TextRun({ text: "Signature et empreintes de l'Acquéreur", bold: true, size: 24 })],
+                        ...ltrCenter,
+                      }),
+                      new Paragraph({
+                        children: [new TextRun({ text: `${contract.gender === 'السيد' ? 'M.' : 'Mme'}: ${contract.customerName}`, bold: true, size: 18 })],
+                        ...ltrCenter,
+                        spacing: { before: 100 },
+                      }),
+                      new Paragraph({ text: "", spacing: { before: 1200 } }),
+                      new Paragraph({ children: [new TextRun({ text: "Cadre d'empreinte digitale", color: "888888", size: 14 })], ...ltrCenter }),
+                    ],
+                  }),
+                  new TableCell({
+                    width: { size: 50, type: WidthType.PERCENTAGE },
+                    children: [
+                      new Paragraph({
+                        children: [new TextRun({ text: "Pour l'entreprise Confort Services Immobiliers", bold: true, size: 24 })],
+                        ...ltrCenter,
+                      }),
+                      new Paragraph({
+                        children: [new TextRun({ text: "Le Gérant Gral: M. NADJAR Abdelghani", bold: true, size: 18 })],
+                        ...ltrCenter,
+                        spacing: { before: 100 },
+                      }),
+                      new Paragraph({ text: "", spacing: { before: 1200 } }),
+                      new Paragraph({ children: [new TextRun({ text: "Griffe et Sceau de l'entreprise", color: "888888", size: 14 })], ...ltrCenter }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }],
+    });
+
+    const blob = await Packer.toBlob(docObj);
+    saveAs(blob, `Avenant_${contract.customerName}.docx`);
+  };
+
+  const downloadWord = async () => {
+    if (!contract) return;
+    if (language === "fr") {
+      await downloadWordFr();
+      return;
+    }
+    
+    const wordColor = selectedTemplate === "royal" ? "065F46" : "991B1B";
+    const totalReceivedVal = contract.reservation?.exists ? (contract.reservation.amount + contract.downPayment) : contract.downPayment;
+    const remainingBalanceVal = (contract.totalPrice + (contract.parking?.price || 0)) - totalReceivedVal;
+    
+    // Helper for Arabic text alignment
+    const arRight = { alignment: AlignmentType.RIGHT, rtl: true };
+    const arCenter = { alignment: AlignmentType.CENTER, rtl: true };
+
+    const docObj = new Document({
+      sections: [{
+        properties: {
+          page: {
+            pageNumbers: {
+              start: 1,
+              formatType: "decimal",
+            },
+          },
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                children: [
+                   new TextRun({ text: "Page ", size: 18 }),
+                   new TextRun({ children: [PageNumber.CURRENT], size: 18 }),
+                   new TextRun({ text: " of ", size: 18 }),
+                   new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18 }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+          }),
+        },
+        children: [
+          // PAGE 1
+          new Paragraph({ text: "", spacing: { before: 200 } }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "كنفور للخدمات العقارية", bold: true, size: 28 }),
+            ],
+            ...arCenter,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "CONFORT IMMOBILIERE", bold: true, size: 32 }),
+            ],
+            ...arCenter,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "بن مراد برج الكيفان الجزائر", size: 24 }),
+            ],
+            ...arCenter,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "الجزائر العاصمة", size: 24 }),
+            ],
+            ...arCenter,
           }),
           
           new Paragraph({ text: "", spacing: { before: 2000 } }),
@@ -1244,15 +1772,117 @@ export default function ContractPrint() {
             ],
             ...arCenter,
           }),
-          
-          new Paragraph({ children: [new PageBreak()] }),
-
-          // PAGE 2: تعيين العقار والموضوع
-          new Paragraph({ text: "", spacing: { before: 400 } }),
           new Paragraph({
-            children: [new TextRun({ text: "تعيين العقار والموضوع", bold: true, size: 36, underline: {} })],
+            children: [
+              new TextRun({ text: "(اتفاقية حجز عقار في طور الإنجاز)", bold: true, size: 28 }),
+            ],
             ...arCenter,
           }),
+
+          new Paragraph({ text: "", spacing: { before: 2000 } }),
+          new Paragraph({
+             children: [
+               new TextRun({ text: "بين مؤسسة كنفور للخدمات العقارية", size: 36 }),
+             ],
+             ...arCenter,
+          }),
+          new Paragraph({
+             children: [
+               new TextRun({ text: `و${contract.gender}: ${contract.customerName}`, bold: true, size: 48 }),
+             ],
+             ...arCenter,
+          }),
+
+          new Paragraph({ text: "", spacing: { before: 2000 } }),
+          new Paragraph({
+             children: [
+               new TextRun({ text: "المرقي العقاري: ", bold: true }),
+               new TextRun({ text: "مؤسسة كنفور للخدمات العقارية، الكائن عنوانها بـ: بن مراد برج الكيفان، الجزائر العاصمة، والمسجلة في السجل التجاري تحت رقم: 122 5143817-16/01" }),
+             ],
+             ...arRight,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "NIS: 1989 4710 01019 26" }),
+            ],
+            ...arRight,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "NIF: 18947100101918641601" }),
+            ],
+            ...arRight,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "يمثلها قانوناً مسيرها السيد: نجار عبد الغني، والمشار إليه في هذا العقد بصفة (المرقي العقاري).", bold: true }),
+            ],
+            ...arRight,
+            spacing: { before: 100 },
+          }),
+
+          new Paragraph({ children: [new PageBreak()] }),
+
+          // PAGE 2
+          new Paragraph({
+            children: [new TextRun({ text: "المشتري", bold: true, size: 32, underline: {} })],
+            ...arRight,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `${contract.gender}: `, bold: true }),
+              new TextRun({ text: contract.customerName, bold: true }),
+              new TextRun({ text: "، والمشار إليه في هذا العقد بصفة (المشتري)." }),
+            ],
+            ...arRight,
+            spacing: { before: 200 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `${contract.idType || "الحامل(ة) لبطاقة التعريف"} رقم ${contract.idNumber}` }),
+            ],
+            ...arRight,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `الصادرة بتاريخ: ${contract.idIssueDate} وتنتهي صلاحيتها بتاريخ: ${contract.idExpiryDate}` }),
+            ],
+            ...arRight,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `العنوان: ${contract.address}` }),
+            ],
+            ...arRight,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `- رقم الهاتف : ${contract.phoneNumber}` }),
+            ],
+            ...arRight,
+          }),
+          ...(contract.notaryName ? [
+            new Paragraph({
+              children: [
+                new TextRun({ text: `ـ عقد الوعد بالبيع لدى ${contract.notaryGender || "الموثق(ة)"} ${cleanNotaryName(contract.notaryName)}`, bold: true }),
+              ],
+              ...arRight,
+              spacing: { before: 200 },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: `بتاريخ: ${contract.promiseOfSaleDate || contract.signingDate}` }),
+              ],
+              ...arRight,
+            })
+          ] : []),
+
+          new Paragraph({ text: "", spacing: { before: 600 } }),
+          new Paragraph({
+            children: [new TextRun({ text: "المـوضــــــــــــــــــــــوع", bold: true, size: 36, underline: {} })],
+            ...arCenter,
+          }),
+
           new Paragraph({
             children: [new TextRun({ text: "- ينص الاتفاق على أن يقوم المرقي العقاري بتشييد شقة سكنية للمشتري وهي:" })],
             ...arRight,
@@ -1260,130 +1890,126 @@ export default function ContractPrint() {
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "الشقة: ", bold: true }),
-              new TextRun({ text: `فئة ${contract.apartmentType}. تقع في ${convertFloorToOrdinal(contract.floor)} في العمارة ${contract.building} في إقامة ${getFullProjectInfo(contract.project)} تحمل الرمز ${contract.apartmentCode} مساحتها الإجمالية حوالي ${contract.area} متر مربع ${contract.parking?.exists ? ` بالإضافة إلى حصة موقف السيارات رقم ${contract.parking.number} الكائن في القبو` : " دون أن يشمل هذا البيع موقف السيارات الكائن في القبو"} بما فيها الحوائط و الفراغات، تحتوي الشقة على: ${contract.roomCount > 1 ? `0${contract.roomCount} غرف` : "غرفة واحدة"}، الحمام، المرحاض، المطبخ.` }),
+              new TextRun({ text: "الشقة : ", bold: true }),
+              new TextRun({ text: `فئة ${contract.apartmentType}. تقع في ${convertFloorToOrdinal(contract.floor)} في العمارة ${contract.building} في إقامة ${contract.project} بـ ${getMunicipality(contract.project)} تحمل الرمز ${contract.apartmentCode} مساحتها الإجمالية حوالي ${contract.area} متر مربع ${contract.parking?.exists ? ` بالإضافة إلى حصة موقف السيارات رقم ${contract.parking.number} الكائن في القبو` : " دون أن يشمل هذا البيع موقف السيارات الكائن في الطابق السفلي"} بما فيها الحوائط و الفراغات، تحتوي الشقة على : ${contract.roomCount > 1 ? `0${contract.roomCount} غرف` : "غرفة واحدة"}، الحمام، المرحاض، المطبخ .` }),
             ],
             ...arRight,
           }),
+
           new Paragraph({ text: "", spacing: { before: 400 } }),
           new Paragraph({
-            children: [new TextRun({ text: "تعيين العقار المتفق على تشييده", bold: true, size: 30, underline: {} })],
+            children: [new TextRun({ text: "تعييـــــــــــــــــن العقار المتفق على تشييده", bold: true, size: 32, underline: {} })],
             ...arCenter,
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: `ـــــ تعد الشقة سالفة الذكر جزء من ضمن المحيط العمراني لبلدية ${getMunicipality(contract.project)}.` }),
+              new TextRun({ text: `ـــــ تعد الشقة سالفة الذكر جزء من ضمن المحيط العمراني ${getMunicipality(contract.project)}.` }),
             ],
             ...arRight,
-            spacing: { before: 200 },
           }),
 
-          new Paragraph({ children: [new PageBreak()] }),
-
-          // PAGE 3: ثمن العقار المتفق على تشييده
+          new Paragraph({ text: "", spacing: { before: 400 } }),
           new Paragraph({
             children: [new TextRun({ text: "ثمن العقــــــــار المتفق على تشييده", bold: true, size: 32, underline: {} })],
             ...arCenter,
           }),
+
           new Paragraph({
             children: [
-              new TextRun({ text: `- اتفق الطرفان على السعر الإجمالي للعقار بمبلغ قدره: ${(contract.totalPrice + (contract.parking?.price || 0)).toLocaleString()} دج (${convertToArabicWords(contract.totalPrice + (contract.parking?.price || 0))} دج).` }),
+              new TextRun({ text: `- اتفق الطرفان على السعر الإجمالي للعقار بمبلغ قدره: ${(contract.totalPrice + (contract.parking?.price || 0)).toLocaleString()} دج` }),
             ],
             ...arRight,
-            spacing: { before: 300 },
           }),
-
-          ...(contract.notaryFee && contract.notaryFee > 0 ? [
-            new Paragraph({
-              children: [
-                new TextRun({ text: `- كما اتفق الطرفان على أتعاب ${contract.notaryGender || "الموثق"} بمبلغ قدره: ${contract.notaryFee.toLocaleString()} دج (${convertToArabicWords(contract.notaryFee)} دج).` }),
-              ],
-              ...arRight,
-              spacing: { before: 200 },
-            })
-          ] : []),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `أي: (${convertToArabicWords(contract.totalPrice + (contract.parking?.price || 0))})`, bold: true }),
+            ],
+            ...arRight,
+          }),
 
           new Paragraph({ text: "", spacing: { before: 200 } }),
           new Paragraph({
-            children: [new TextRun({ text: "تفاصيل المبلغ:", bold: true, size: 24 })],
+            children: [new TextRun({ text: "تفاصيل المبلغ:", bold: true })],
             ...arRight,
           }),
           new Paragraph({
-            children: [
-              new TextRun({ text: `• سعر الشقة: ${contract.totalPrice.toLocaleString()} دج (${convertToArabicWords(contract.totalPrice)} دج).` }),
-            ],
+            children: [new TextRun({ text: `• سعر الشقة: ${contract.totalPrice.toLocaleString()} دج (${convertToArabicWords(contract.totalPrice)}).` })],
             ...arRight,
           }),
           ...(contract.parking?.exists ? [
             new Paragraph({
-              children: [
-                new TextRun({ text: `• سعر موقف السيارات: ${contract.parking.price.toLocaleString()} دج (${convertToArabicWords(contract.parking.price)} دج)، رقم بـ ${contract.parking.number}.` }),
-              ],
+              children: [new TextRun({ text: `• سعر موقف السيارات: ${contract.parking.price.toLocaleString()} دج (${convertToArabicWords(contract.parking.price)}) (رقم بـ ${contract.parking.number}).` })],
               ...arRight,
             })
           ] : []),
           ...(contract.reservation?.exists ? [
             new Paragraph({
-              children: [
-                new TextRun({ text: `• تم دفع مبلغ حجز مسبق بتاريخ ${contract.reservation.date} قدره ${contract.reservation.amount.toLocaleString()} دج (${convertToArabicWords(contract.reservation.amount)} دج).` }),
-              ],
+              children: [new TextRun({ text: `• تم دفع مبلغ حجز مسبق بتاريخ ${contract.reservation.date} قدره ${contract.reservation.amount.toLocaleString()} دج (${convertToArabicWords(contract.reservation.amount)}).` })],
               ...arRight,
             })
           ] : [
             new Paragraph({
-              children: [
-                new TextRun({ text: "• بدون حجز مسبق." }),
-              ],
+              children: [new TextRun({ text: `• بدون حجز مسبق.` })],
               ...arRight,
             })
           ]),
 
-          new Paragraph({ text: "", spacing: { before: 300 } }),
-          ...(contract.reservation?.exists ? [
+          ...(contract.notaryFee && contract.notaryFee > 0 ? [
             new Paragraph({
               children: [
-                new TextRun({ text: `ـ تم دفع دفعة إضافية بتاريخ توقيع هذا العقد قدرها: ${contract.downPayment.toLocaleString()} دج (&nbsp;${convertToArabicWords(contract.downPayment)} دج).` }),
+                new TextRun({ text: `ـ كما اتفق الطرفان على أتعاب ${contract.notaryGender || "الموثق"}: ${contract.notaryFee.toLocaleString()} دج`, bold: true }),
               ],
               ...arRight,
+              spacing: { before: 200 },
             }),
             new Paragraph({
               children: [
-                new TextRun({ text: `ـ مجموع ما تم استلامه من المشتري حتى الآن: ${totalReceivedVal.toLocaleString()} دج (${convertToArabicWords(totalReceivedVal)} دج).` }),
+                new TextRun({ text: `أي: (${convertToArabicWords(contract.notaryFee)})`, bold: true }),
               ],
               ...arRight,
+            })
+          ] : []),
+
+          ...(contract.reservation?.exists ? [
+            new Paragraph({
+              children: [
+                new TextRun({ text: `ـ تم دفع دفعة إضافية بتاريخ توقيع هذا العقد قدرها: ${contract.downPayment.toLocaleString()} دج (أي: ${convertToArabicWords(contract.downPayment)}).` }),
+              ],
+              ...arRight,
+              spacing: { before: 400 },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: `ـ مجموع ما تم استلامه من المشتري حتى الآن: ${totalReceivedVal.toLocaleString()} دج (أي: ${convertToArabicWords(totalReceivedVal)}).`, bold: true }),
+              ],
+              ...arRight,
+              spacing: { before: 200 },
             })
           ] : [
             new Paragraph({
               children: [
-                new TextRun({ text: `ـ مجموع ما تم استلامه من المشتري حتى الآن: ${totalReceivedVal.toLocaleString()} دج (&nbsp;${convertToArabicWords(totalReceivedVal)} دج).` }),
+                new TextRun({ text: `ـ مجموع ما تم استلامه من المشتري حتى الآن: ${totalReceivedVal.toLocaleString()} دج (أي: ${convertToArabicWords(totalReceivedVal)}).`, bold: true }),
               ],
               ...arRight,
+              spacing: { before: 400 },
             })
           ]),
 
-          ...(remainingBalanceVal > 0 ? [
-            new Paragraph({
-              children: [
-                new TextRun({ text: `ـ المبلغ المتبقي في ذمة المشتري (${(contract.totalPrice + (contract.parking?.price || 0)).toLocaleString()} دج - ${totalReceivedVal.toLocaleString()} دج): ${remainingBalanceVal.toLocaleString()} دج (${convertToArabicWords(remainingBalanceVal)} دج)، يتم تسديده حسب الرزنامة المتفق عليها.` }),
-              ],
-              ...arRight,
-            })
-          ] : [
-            new Paragraph({
-              children: [
-                new TextRun({ text: "ـ لقد تم تسديد كامل المبلغ الإجمالي للعقار." }),
-              ],
-              ...arRight,
-            })
-          ]),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `ـ المبلغ المتبقي في ذمة المشتري (${(contract.totalPrice + (contract.parking?.price || 0)).toLocaleString()} دج - ${totalReceivedVal.toLocaleString()} دج): ${remainingBalanceVal.toLocaleString()} دج (أي: ${convertToArabicWords(remainingBalanceVal)})، يتم تسديده حسب الرزنامة المتفق عليها.` }),
+            ],
+            ...arRight,
+            spacing: { before: 400 },
+          }),
 
           new Paragraph({ text: "", spacing: { before: 400 } }),
           new Paragraph({
             children: [
-              new TextRun({
-                text: "بند الثمن القطعي والمصاريف: يتفق الطرفان صراحة وبصفة مطلقة على أن السعر الإجمالي المذكور للعقار هو سعر قطعي، نهائي، وثابت، وغير قابل للمراجعة أو التعديل بالزيادة أو النقصان تحت أي ظرف كان، بما في ذلك التغييرات الاقتصادية أو الطارئة. كما يعتبر هذا السعر صافياً يغطي حصراً قيمة العقار؛ وعليه، يتحمل المشتري وحده، بصفة حصرية ونهائية، كافة التكاليف، والرسوم، والضرائب المتعلقة بإبرام التعاقد ونقل الملكية، والتي تشمل على سبيل المثال لا الحصر: كافة أتعاب التوثيق، حقوق ورسوم التسجيل لدى إدارة الضرائب، رسوم الإشهار العقاري لدى المحافظة العقارية، مصاريف الطابع، ومساهمات تسيير الأجزاء المشتركة . يخلي المرقي العقاري مسؤولوته التامة من أي مطالبات مالية خارج هذا السعر الصافي والرسوم المحددة للمشتري.",
+              new TextRun({ 
+                text: "بند الثمن القطعي والمصاريف: يتفق الطرفان صراحة وبصفة مطلقة على أن السعر الإجمالي المذكور للعقار هو سعر قطعي، نهائي، وثابت، وغير قابل للمراجعة أو التعديل بالزيادة أو النقصان تحت أي ظرف كان، بما في ذلك التغييرات الاقتصادية أو الطارئة. كما يعتبر هذا السعر صافياً يغطي حصراً قيمة العقار؛ وعليه، يتحمل المشتري وحده، بصفة حصرية ونهائية، كافة التكاليف، والرسوم، والضرائب المتعلقة بإبرام التعاقد ونقل الملكية، والتي تشمل على سبيل المثال لا الحصر: كافة أتعاب التوثيق، حقوق ورسوم التسجيل لدى إدارة الضرائب، رسوم الإشهار العقاري لدى المحافظة العقارية، مصاريف الطابع، ومساهمات تسيير الأجزاء المشتركة . يخلي المرقي العقاري مسؤوليته التامة من أي مطالبات مالية خارج هذا السعر الصافي والرسوم المحددة للمشتري.",
                 bold: true,
-                size: 20,
+                size: 20
               })
             ],
             ...arRight,
@@ -1391,28 +2017,32 @@ export default function ContractPrint() {
 
           new Paragraph({ children: [new PageBreak()] }),
 
-          // PAGE 4: آجال التسليم والتصريحات
+          // PAGE 4
           new Paragraph({
-            children: [new TextRun({ text: "آجال التسليم والتصريحات", bold: true, size: 32, underline: {} })],
+            children: [new TextRun({ text: "آجال التسليم", bold: true, size: 32, underline: {} })],
             ...arCenter,
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: `ــــ يتعهد المرقي العقاري بتشييد الشقة للمشتري خلال مدة ${contract.duration} ويكون التسليم بعد الانتهاء من المشروع بإمضاء محضر التسليم.` }),
+              new TextRun({ text: `ــــ يتعهد المرقي العقاري بتشييد الشقة للمشتري خلال مدة ${contract.duration} ويكون التسليم بعد الانتهاء من كامل المشروع بإمضاء محضر التسليم.` }),
             ],
             ...arRight,
-            spacing: { before: 300 },
+          }),
+
+          new Paragraph({ text: "", spacing: { before: 400 } }),
+          new Paragraph({
+            children: [new TextRun({ text: "التصريحات", bold: true, size: 32, underline: {} })],
+            ...arCenter,
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: `ـ صرح المرقي العقاري بأنه يشيد الشقة السالفة الذكر ${contract.isFinished ? "جاهزة" : "نصف جاهزة"} مع التزامه بكامل الضمانات العادية وكذا احترام التصاميم والمخططات المتفق عليها وأصول الفن المتعارف عليها في هذا المجال، وبالأشغال النهائية تركيب النظام الكهربائي بدون تجهيزات مع كميرا المراقبة + مصعد كهربائي + خزان مائي .` }),
+              new TextRun({ text: `- صرح المرقي العقاري بأنه يشيد الشقة السالفة الذكر ${contract.isFinished ? "جاهزة" : "نصف جاهزة"} مع التزامه بكامل الضمانات العادية وكذا احترام التصاميم والمخططات المتفق عليها وأصول الفن المتعارف عليها في هذا المجال، وبالأشغال النهائية تركيب النظام الكهربائي بدون تجهيزات مع كميرا المراقبة + مصعد كهربائي + خزان مائي .` }),
             ],
             ...arRight,
-            spacing: { before: 200 },
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "ـ صرح المشتري بأنه عاين المكان محل التعاقد (الشقة وكذا المشروع) واطلع على التصاميم والمقاطع ومخطط الكتلة (Plan de masse) ومخططات البناية والتجهيزات المتعلقة بها ورضي بها." }),
+              new TextRun({ text: "صرح المشتري بأنه عاين المكان محل التعاقد (الشقة وكذا المشروع) واطلع على التصاميم والمقاطع ومخطط الكتلة (Plan de masse) ومخططات البناية والتجهيزات المتعلقة بها ورضي بها." }),
             ],
             ...arRight,
             spacing: { before: 200 },
@@ -1420,18 +2050,19 @@ export default function ContractPrint() {
 
           new Paragraph({ children: [new PageBreak()] }),
 
-          // PAGE 5: الالتزامات والحقوق
+          // PAGE 5
           new Paragraph({
-            children: [new TextRun({ text: "الالتزامات والحقوق العامة والخاصة", bold: true, size: 32, underline: {} })],
+            children: [new TextRun({ text: "الالتزامات والحقوق", bold: true, size: 36, underline: {}, color: wordColor })],
             ...arCenter,
+            spacing: { after: 300 },
           }),
-          
-          // Section 1: التزامات وحقوق الطرفين
+
+          // Section 1: الالتزامات العامة
           ...(groupedClauses.general.length > 0 ? [
             new Paragraph({
-              children: [new TextRun({ text: "الالتزامات والحقوق العامة للطرفين:", bold: true, size: 28, color: wordColor })],
+              children: [new TextRun({ text: "الالتزامات والالتزامات العامة:", bold: true, size: 28, color: wordColor })],
               ...arRight,
-              spacing: { before: 300, after: 100 },
+              spacing: { before: 200, after: 100 },
             }),
             ...groupedClauses.general.map((clause: string) => new Paragraph({
               children: [new TextRun({ text: `• ${clause}` })],
@@ -1440,10 +2071,10 @@ export default function ContractPrint() {
             }))
           ] : []),
 
-          // Section 2: شروط فسخ العقد
+          // Section 2: شروط الفسخ والتراجع
           ...(groupedClauses.termination.length > 0 ? [
             new Paragraph({
-              children: [new TextRun({ text: "شروط فسخ وإلغاء العقد:", bold: true, size: 28, color: wordColor })],
+              children: [new TextRun({ text: "شروط الفسخ والتراجع:", bold: true, size: 28, color: wordColor })],
               ...arRight,
               spacing: { before: 300, after: 100 },
             }),
@@ -1454,10 +2085,10 @@ export default function ContractPrint() {
             }))
           ] : []),
 
-          // Section 3: شروط توقف الأشغال والآجال
+          // Section 3: حالة توقف المشروع أو الإفلاس
           ...(groupedClauses.halting.length > 0 ? [
             new Paragraph({
-              children: [new TextRun({ text: "شروط توقف الأشغال وتأخرها:", bold: true, size: 28, color: wordColor })],
+              children: [new TextRun({ text: "حالة توقف المشروع أو الإفلاس:", bold: true, size: 28, color: wordColor })],
               ...arRight,
               spacing: { before: 300, after: 100 },
             }),
@@ -1470,10 +2101,11 @@ export default function ContractPrint() {
 
           new Paragraph({ children: [new PageBreak()] }),
 
-          // PAGE 6: تابع الالتزامات والحقوق والملحقات
+          // PAGE 6
           new Paragraph({
-            children: [new TextRun({ text: "تابع الالتزامات والحقوق والملحقات", bold: true, size: 32, underline: {} })],
+            children: [new TextRun({ text: "تابع الالتزامات والحقوق", bold: true, size: 36, underline: {}, color: wordColor })],
             ...arCenter,
+            spacing: { after: 300 },
           }),
 
           // Section 4: التنازل ووفاة أحد الطرفين
@@ -1481,7 +2113,7 @@ export default function ContractPrint() {
             new Paragraph({
               children: [new TextRun({ text: "التنازل ووفاة أحد الطرفين:", bold: true, size: 28, color: wordColor })],
               ...arRight,
-              spacing: { before: 300, after: 100 },
+              spacing: { before: 200, after: 100 },
             }),
             ...groupedClauses.assignment.map((clause: string) => new Paragraph({
               children: [new TextRun({ text: `• ${clause}` })],
@@ -1495,7 +2127,7 @@ export default function ContractPrint() {
             new Paragraph({
               children: [new TextRun({ text: "الوضع القانوني للمشروع:", bold: true, size: 28, color: wordColor })],
               ...arRight,
-              spacing: { before: 200, after: 100 },
+              spacing: { before: 300, after: 100 },
             }),
             ...groupedClauses.legalStatus.map((clause: string) => new Paragraph({
               children: [new TextRun({ text: `• ${clause}` })],
@@ -1507,7 +2139,7 @@ export default function ContractPrint() {
           // Section 6: الضرائب والرسوم
           ...(groupedClauses.taxes.length > 0 ? [
             new Paragraph({
-              children: [new TextRun({ text: "الضرائب والرسوم والمصاريف الدورية والموسمية:", bold: true, size: 28, color: wordColor })],
+              children: [new TextRun({ text: "الضرائب والرسوم:", bold: true, size: 28, color: wordColor })],
               ...arRight,
               spacing: { before: 300, after: 100 },
             }),
@@ -1521,7 +2153,7 @@ export default function ContractPrint() {
           // Section 7: تسوية النزاعات والتعديلات
           ...(groupedClauses.disputes.length > 0 ? [
             new Paragraph({
-              children: [new TextRun({ text: "تسوية النزاعات والتعديلات المسموح بها:", bold: true, size: 28, color: wordColor })],
+              children: [new TextRun({ text: "تسوية النزاعات والتعديلات:", bold: true, size: 28, color: wordColor })],
               ...arRight,
               spacing: { before: 300, after: 100 },
             }),
@@ -1532,18 +2164,18 @@ export default function ContractPrint() {
             }))
           ] : []),
 
-          new Paragraph({ text: "", spacing: { before: 400 } }),
           new Paragraph({
             children: [
-              new TextRun({ text: "تعتبر هذه الاتفاقية ملحقاً تقنياً ومالياً وجزءاً لا يتجزأ من عقد الوعد بالبيع الرسمي المبرم بين الطرفين وتلحق به وتسري عليها كافة آثاره القانونية وشروط الإثبات الرسمية.", size: 20 }),
+              new TextRun({ text: `يقوم الطرفان بإفراغ محتوى هذه الاتفاقية في شكلها الرسمي عند الموثق بعد نهاية المشروع وإمضاء محضر التسليم وتخضع للشكليات القانونية الخاصة بالتسجيل والإشهار.`, bold: true }),
             ],
             ...arRight,
+            spacing: { before: 400 },
           }),
-          
-          new Paragraph({ text: "", spacing: { before: 200 } }),
+
+          new Paragraph({ text: "", spacing: { before: 600 } }),
           new Paragraph({
             children: [
-              new TextRun({ text: "الوثائق المرفقة:", bold: true, size: 22, color: wordColor }),
+              new TextRun({ text: "الوثائق المرفقة:", bold: true, underline: {} }),
             ],
             ...arRight,
           }),
@@ -1552,13 +2184,13 @@ export default function ContractPrint() {
             ...arRight,
           }),
           new Paragraph({
-            children: [new TextRun({ text: "2. (مخطط الشقة) Plan d'appartement" })],
+            children: [new TextRun({ text: "2. (مخطط الشقة) Plan appartement" })],
             ...arRight,
           }),
 
           new Paragraph({ children: [new PageBreak()] }),
 
-          // PAGE 7: التوقيعات وإتمام مستند Word
+          // PAGE 7: Signatures
           new Paragraph({ text: "", spacing: { before: 1200 } }),
           new Paragraph({
             children: [
@@ -1583,41 +2215,20 @@ export default function ContractPrint() {
               new TableRow({
                 children: [
                   new TableCell({
-                    width: { size: 50, type: WidthType.PERCENTAGE },
                     children: [
-                      new Paragraph({
-                        children: [new TextRun({ text: "الـمـشـتـري (Acquéreur)", bold: true, size: 24, color: wordColor })],
-                        ...arCenter,
-                      }),
-                      new Paragraph({
-                        children: [new TextRun({ text: `${contract.customerName}`, size: 20 })],
-                        ...arCenter,
-                        spacing: { before: 100 },
-                      }),
-                      new Paragraph({ text: "", spacing: { before: 1400 } }),
-                      new Paragraph({
-                        children: [new TextRun({ text: "(بصمة الإصبع إجبارية)", size: 18, italics: true })],
-                        ...arCenter,
-                      }),
+                      new Paragraph({ children: [new TextRun({ text: "بصمة وإمضاء المشتري", bold: true, size: 28 })], alignment: AlignmentType.CENTER }),
+                      new Paragraph({ children: [new TextRun({ text: `${contract.gender}: ${contract.customerName}`, bold: true, size: 22 })], alignment: AlignmentType.CENTER, spacing: { before: 100 } }),
+                      new Paragraph({ text: "", spacing: { before: 1600 } }),
+                      new Paragraph({ children: [new TextRun({ text: "(بصمة المشتري)", size: 20 })], alignment: AlignmentType.CENTER }),
                     ],
                   }),
                   new TableCell({
-                    width: { size: 50, type: WidthType.PERCENTAGE },
                     children: [
-                      new Paragraph({
-                        children: [new TextRun({ text: "المرقي العقاري (Promoteur)", bold: true, size: 24, color: wordColor })],
-                        ...arCenter,
-                      }),
-                      new Paragraph({
-                        children: [new TextRun({ text: "شركة كنفور للخدمات العقارية", size: 20 })],
-                        ...arCenter,
-                        spacing: { before: 100 },
-                      }),
-                      new Paragraph({ text: "", spacing: { before: 1400 } }),
-                      new Paragraph({
-                        children: [new TextRun({ text: "(توقيع وختم الشركة)", size: 18, italics: true })],
-                        ...arCenter,
-                      }),
+                      new Paragraph({ children: [new TextRun({ text: "المرقي العقاري:", bold: true, size: 28 })], alignment: AlignmentType.CENTER }),
+                      new Paragraph({ children: [new TextRun({ text: "عن مؤسسة كنفور للخدمات العقارية", size: 20 })], alignment: AlignmentType.CENTER }),
+                      new Paragraph({ children: [new TextRun({ text: "المسير: نجار عبد الغني", bold: true, size: 22 })], alignment: AlignmentType.CENTER }),
+                      new Paragraph({ text: "", spacing: { before: 1200 } }),
+                      new Paragraph({ children: [new TextRun({ text: "(الإمضاء والختم)", size: 20 })], alignment: AlignmentType.CENTER }),
                     ],
                   }),
                 ],
@@ -1627,124 +2238,156 @@ export default function ContractPrint() {
         ],
       }],
     });
-    
+
     const blob = await Packer.toBlob(docObj);
-    saveAs(blob, `Contrat_${contract.customerName}.docx`);
+    saveAs(blob, `عقد_${contract.customerName}.docx`);
   };
+
+  if (loading || !contract) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-brand-bg text-slate-100" id="loading-spinner">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-accent"></div>
+      </div>
+    );
+  }
 
   const themeColors = {
-    borderRAccent: selectedTemplate === "royal" ? "border-r-emerald-800" : "border-r-brand-accent",
-    bullet: selectedTemplate === "royal" ? "text-emerald-800" : "text-brand-accent",
+    borderRAccent: isRoyal ? 'border-emerald-800' : 'border-red-800',
+    bullet: isRoyal ? 'text-amber-700' : 'text-red-800',
   };
 
-  const totalReceivedReact = contract ? (contract.reservation?.exists ? (contract.reservation.amount + contract.downPayment) : contract.downPayment) : 0;
-  const remainingBalanceReact = contract ? ((contract.totalPrice + (contract.parking?.price || 0)) - totalReceivedReact) : 0;
+  const totalReceivedReact = contract.reservation?.exists ? (contract.reservation.amount + contract.downPayment) : contract.downPayment;
+  const remainingBalanceReact = (contract.totalPrice + (contract.parking?.price || 0)) - totalReceivedReact;
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 print:bg-white text-slate-800">
-      {/* Top Banner Controls */}
-      <div className="bg-white border-b border-slate-200 py-4 px-6 sticky top-0 z-50 print:hidden shadow-sm">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-medium">
-              <ArrowLeft className="w-5 h-5" /> {language === 'ar' ? "رجوع" : "Retour"}
-            </button>
-            <div className="h-6 w-px bg-slate-200"></div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">{language === 'ar' ? "معاينة وتحميل الملحق" : "Aperçu et téléchargement de l'annexe"}</h1>
-              <p className="text-xs text-slate-500 font-mono">{contract.contractCode}</p>
-            </div>
+    <div className={`min-h-screen bg-brand-bg md:px-0 ${language === "ar" ? "text-right" : "text-left"}`} dir={language === "ar" ? "rtl" : "ltr"}>
+      {/* Action Bar */}
+      <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-6 no-print">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <button
+            onClick={() => navigate("/")}
+            className="p-3 bg-brand-card hover:bg-brand-input border border-white/5 rounded-2xl transition-all text-slate-400 hover:text-slate-100 shadow-xl shrink-0"
+          >
+            <ArrowRight className="w-6 h-6" />
+          </button>
+          <div className="overflow-hidden">
+            <h1 className="text-xl md:text-2xl font-bold text-slate-50 tracking-tight truncate">معاينة العقد</h1>
+            <p className="text-slate-500 text-xs md:text-sm truncate">مراجعة وتصدير العقد الخاص بـ {contract.customerName}</p>
           </div>
-          
-          <div className="flex flex-wrap gap-3">
-            {/* Template selector */}
-            <div className="flex bg-slate-100 p-1 rounded-xl items-center gap-1 border border-slate-200">
-              <button 
-                onClick={() => setSelectedTemplate("burgundy")} 
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  selectedTemplate === "burgundy" 
-                    ? "bg-white text-brand border border-slate-200 shadow-sm" 
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                {language === 'ar' ? "كلاسيكي عنابي" : "Classique Bourgogne"}
-              </button>
-              <button 
-                onClick={() => setSelectedTemplate("royal")} 
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  selectedTemplate === "royal" 
-                    ? "bg-emerald-800 text-white shadow-sm" 
-                    : "text-slate-600 hover:text-emerald-800"
-                }`}
-              >
-                {language === 'ar' ? "ملكي زمردي" : "Royal Émeraude"}
-              </button>
-            </div>
-            
-            {/* Language toggle */}
-            <button 
-              onClick={() => setLanguage(language === "ar" ? "fr" : "ar")} 
-              className="flex items-center gap-2 bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-200 font-bold text-xs shadow-sm"
-            >
-              {language === "ar" ? "Français Juridique" : "العربية القانونية"}
-            </button>
-            
-            {/* Word button */}
-            <button 
-              onClick={downloadWord} 
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 font-bold text-xs shadow-sm"
-            >
-              <FileWord className="w-5 h-5" /> {language === 'ar' ? "تحميل Word" : "Télécharger Word"}
-            </button>
-            
-            {/* PDF print button */}
-            <button 
-              onClick={handlePrint} 
-              disabled={isExportingPdf}
-              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-semibold text-xs shadow-sm"
-            >
-              {isExportingPdf ? (
-                <>
-                  <svg className="animate-spin h-5 w-5 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {language === 'ar' ? "جاري توليد PDF..." : "Génération du PDF..."}
-                </>
-              ) : (
-                <>
-                  <Printer className="w-5 h-5" /> {language === 'ar' ? "طباعة PDF" : "Imprimer PDF"}
-                </>
-              )}
-            </button>
-          </div>
+        </div>
+
+        {/* Language Selector */}
+        <div className="flex bg-brand-card border border-white/5 p-1 rounded-2xl shadow-xl w-full sm:w-auto overflow-hidden">
+          <button
+            onClick={() => setLanguage("ar")}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+              language === "ar"
+                ? "bg-brand-accent text-black shadow-md"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            العربية (Ar)
+          </button>
+          <button
+            onClick={() => setLanguage("fr")}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+              language === "fr"
+                ? "bg-brand-accent text-black shadow-md"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Français (Fr)
+          </button>
+        </div>
+
+        {/* Template Selector */}
+        <div className="flex bg-brand-card border border-white/5 p-1 rounded-2xl shadow-xl w-full sm:w-auto overflow-hidden">
+          <button
+            onClick={() => setSelectedTemplate("burgundy")}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+              selectedTemplate === "burgundy"
+                ? "bg-red-800 text-white shadow-md"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            القالب الخمري الكلاسيكي
+          </button>
+          <button
+            onClick={() => setSelectedTemplate("royal")}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+              selectedTemplate === "royal"
+                ? "bg-emerald-800 text-white shadow-md"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            القالب الملكي الزمردي
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <button
+            onClick={downloadWord}
+            disabled={isExportingPdf}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 bg-brand-input hover:bg-white/5 text-slate-200 px-4 md:px-6 py-3 rounded-xl font-bold transition-all border border-white/5 active:scale-95 shadow-xl text-sm md:text-base ${
+              isExportingPdf ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
+            <FileWord className="w-5 h-5 text-brand-accent" /> Word
+          </button>
+          <button
+            onClick={handlePrint}
+            disabled={isExportingPdf}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 md:px-6 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-sm md:text-base ${
+              isExportingPdf 
+                ? "bg-slate-700 text-slate-400 cursor-not-allowed" 
+                : "bg-brand-accent hover:bg-brand-accent/90 text-black shadow-brand-accent/20"
+            }`}
+          >
+            {isExportingPdf ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                جاري توليد PDF...
+              </>
+            ) : (
+              <>
+                <Printer className="w-5 h-5" /> طباعة PDF
+              </>
+            )}
+          </button>
         </div>
       </div>
 
       <div className="flex flex-col gap-12 print:gap-0 pb-20 items-center overflow-x-auto w-full px-4 sm:px-0 print:px-0 print:pb-0">
         <div id="contract-preview-pages" className="min-w-[210mm] sm:min-w-0 flex flex-col items-center gap-12 print:gap-0 scale-75 md:scale-100 origin-top print:scale-100 print:m-0 print:w-[210mm]">
-          {/* PAGE 1: Title Page */}
-          <div className={`contract-page ${language === 'ar' ? 'rtl font-arabic text-right' : 'ltr font-sans text-left'} relative flex flex-col ${isRoyal ? 'bg-gradient-to-b from-white to-emerald-50/5' : ''}`}>
+          {language === "fr" ? (
+            <FrenchContractPages
+              contract={contract}
+              isRoyal={isRoyal}
+              themeColors={themeColors}
+              totalReceivedReact={totalReceivedReact}
+              remainingBalanceReact={remainingBalanceReact}
+              groupedClauses={groupedClauses}
+              convertFloorToFrenchOrdinal={convertFloorToFrenchOrdinal}
+              convertToFrenchWords={convertToFrenchWords}
+              getFullProjectInfo={getFullProjectInfo}
+              getMunicipality={getMunicipality}
+            />
+          ) : (
+            <>
+              {/* PAGE 1: Title Page */}
+              <div className={`contract-page rtl font-arabic relative flex flex-col ${isRoyal ? 'bg-gradient-to-b from-white to-emerald-50/5' : ''}`}>
             {isRoyal && (
               <div className="absolute inset-4 border-2 border-double border-amber-600/30 pointer-events-none rounded-2xl z-0" />
             )}
             <div className="flex flex-col items-center justify-between flex-grow pb-12 z-10 relative">
               <div className="text-center relative w-full pt-4">
-                {language === "ar" ? (
-                  <>
-                    <h2 className={`text-lg font-bold mb-1 ${isRoyal ? 'text-emerald-950' : ''}`}>كنفور للخدمات العقارية</h2>
-                    <h1 className={`text-xl font-bold mb-1 ${isRoyal ? 'text-emerald-800' : ''}`}>CONFORT IMMOBILIERE</h1>
-                    <p className="text-base text-slate-600">بن مراد برج الكيفان الجزائر</p>
-                    <p className="text-base text-slate-600">الجزائر العاصمة</p>
-                  </>
-                ) : (
-                  <>
-                    <h2 className={`text-lg font-bold mb-1 ${isRoyal ? 'text-emerald-950' : ''}`}>CONFORT SERVICES IMMOBILIERS</h2>
-                    <h1 className={`text-xl font-bold mb-1 ${isRoyal ? 'text-emerald-800' : ''}`}>CONFORT IMMOBILIERE</h1>
-                    <p className="text-base text-slate-600">Ben Mourad, Bordj El Kiffan, Alger</p>
-                    <p className="text-base text-slate-600">Alger</p>
-                  </>
-                )}
+                <h2 className={`text-lg font-bold mb-1 ${isRoyal ? 'text-emerald-950' : ''}`}>كنفور للخدمات العقارية</h2>
+                <h1 className={`text-xl font-bold mb-1 ${isRoyal ? 'text-emerald-800' : ''}`}>CONFORT IMMOBILIERE</h1>
+                <p className="text-base text-slate-600">بن مراد برج الكيفان الجزائر</p>
+                <p className="text-base text-slate-600">الجزائر العاصمة</p>
               </div>
 
               {isRoyal ? (
@@ -1759,109 +2402,127 @@ export default function ContractPrint() {
                 <div className="my-8" />
               )}
 
-              <div className="my-6 text-center">
-                {language === "ar" ? (
-                  <h1 className={`text-2xl md:text-3xl font-bold py-6 px-10 leading-relaxed text-center ${
-                    isRoyal 
-                      ? 'border-y border-double border-emerald-800 text-emerald-900 bg-emerald-50/20 rounded' 
-                      : 'border-y-2 border-black'
-                  }`}>
-                    ملحق تقني ومالي لعقد الوعد بالبيع
-                  </h1>
-                ) : (
-                  <h1 className={`text-2xl md:text-3xl font-bold py-6 px-10 leading-relaxed text-center ${
-                    isRoyal 
-                      ? 'border-y border-double border-emerald-800 text-emerald-900 bg-emerald-50/20 rounded' 
-                      : 'border-y-2 border-black'
-                  }`}>
-                    ANNEXE TECHNIQUE ET FINANCIÈRE DE LA PROMESSE DE VENTE
-                  </h1>
-                )}
+              <div className="my-6">
+                <h1 className={`text-2xl md:text-3xl font-bold py-6 px-10 leading-relaxed text-center ${
+                  isRoyal 
+                    ? 'border-y border-double border-emerald-800 text-emerald-900 bg-emerald-50/20 rounded' 
+                    : 'border-y-2 border-black'
+                }`}>
+                  ملحق تقني ومالي لعقد الوعد بالبيع
+                  <br />
+                  <span className="text-lg md:text-xl font-normal opacity-85">(اتفاقية حجز عقار في طور الإنجاز)</span>
+                </h1>
               </div>
 
-              <div className="max-w-2xl mx-auto text-base space-y-4 px-6 leading-relaxed">
-                {language === "ar" ? (
-                  <p className="text-right">
-                    <span className="font-bold">المرقي العقاري :</span> شركة كنفور للخدمات العقارية، الكائن مقرها بـ : بن مراد، برج الكيفان، الجزائر العاصمة، ممثلة بمديرها السيد نجار عبد الغني.
-                  </p>
-                ) : (
-                  <p className="text-left font-sans">
-                    <span className="font-bold">Le Promoteur :</span> CONFORT SERVICES IMMOBILIERS, sise à : Ben Mourad, Bordj El Kiffan, Alger, représentée légalement par son gérant, M. NEDJAR Abdelghani.
-                  </p>
+              <div className={`w-full max-w-xl p-8 text-center my-6 relative overflow-hidden ${
+                isRoyal 
+                  ? 'border-4 border-double border-emerald-800/80 bg-emerald-50/10 rounded-3xl shadow-sm' 
+                  : 'border-4 border-black rounded-3xl'
+              }`}>
+                {isRoyal && (
+                  <>
+                    <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-amber-600/40 rounded-tr" />
+                    <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-amber-600/40 rounded-tl" />
+                    <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-amber-600/40 rounded-br" />
+                    <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-amber-600/40 rounded-bl" />
+                  </>
                 )}
+                <h2 className={`text-2xl mb-4 ${isRoyal ? 'text-emerald-950 font-bold' : ''}`}>بين مؤسسة كنفور للخدمات العقارية</h2>
+                {isRoyal && <div className="h-0.5 w-20 bg-amber-600/20 mx-auto mb-4" />}
+                <h2 className={`text-3xl font-bold ${isRoyal ? 'text-emerald-900' : ''}`}>و{contract.gender}: {contract.customerName}</h2>
+              </div>
+
+              <div className="w-full mt-auto pt-6 text-xs">
+                <div className="text-right">
+                  <div className={isRoyal ? 'text-emerald-900' : ''}>
+                    <p className="font-bold mb-1">المرقي العقاري:</p>
+                    <p>مؤسسة كنفور للخدمات العقارية، الكائن عنوانها بـ: بن مراد برج الكيفان، الجزائر العاصمة، والمسجلة في السجل التجاري تحت رقم: 122 5143817-16/01</p>
+                    <p>NIS: 1989 4710 01019 26</p>
+                    <p>NIF: 18947100101918641601</p>
+                    <p className="font-bold mt-1">يمثلها قانوناً مسيرها السيد: نجار عبد الغني، والمشار إليه في هذا العقد بصفة (المرقي العقاري).</p>
+                  </div>
+                </div>
               </div>
             </div>
-            
+
             {/* Footer for Page 1 */}
             <div className="contract-footer z-10">
               <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
-              <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">
-                {language === "ar" ? "الصفحة 1 من 7" : "Page 1 sur 7"}
-              </div>
+              <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 1 من 7</div>
             </div>
           </div>
 
-          {/* PAGE 2 */}
-          <div className={`contract-page ${language === 'ar' ? 'rtl font-arabic text-right' : 'ltr font-sans text-left'} relative flex flex-col`}>
-            {isRoyal && (
-              <div className="absolute inset-4 border-2 border-double border-amber-600/20 pointer-events-none rounded-2xl z-0" />
-            )}
-            <div className="py-2 flex-grow z-10 relative">
-              <div className="text-center my-4">
-                <h2 className={`text-xl font-bold border-b-2 inline-block px-12 pb-0.5 ${
-                  isRoyal ? 'border-emerald-800 text-emerald-950 font-bold' : 'border-black'
-                }`}>
-                  {language === "ar" ? "تعيين العقار والموضوع" : "DESIGNATION DE L'IMMEUBLE ET OBJET"}
-                </h2>
-              </div>
-              <div className="space-y-6 text-base leading-relaxed">
-                {language === "ar" ? (
-                  <>
-                    <p>
-                      - ينص الاتفاق على أن يقوم المرقي العقاري بتشييد شقة سكنية للمشتري وهي:
-                    </p>
-                    <p>
-                      <span className="font-bold">الشقة :</span> فئة {contract.apartmentType}. تقع في {convertFloorToOrdinal(contract.floor)} في العمارة {contract.building} في إقامة {getFullProjectInfo(contract.project)} تحمل الرمز <span className="font-sans font-bold">{contract.apartmentCode}</span> مساحتها الإجمالية حوالي <span className="font-sans font-bold">{contract.area}</span> متر مربع {contract.parking?.exists ? ` بالإضافة إلى حصة موقف السيارات رقم ${contract.parking.number} الكائن في القبو` : " دون أن يشمل هذا البيع موقف السيارات الكائن في القبو"} بما فيها الحوائط و الفراغات، تحتوي الشقة على : {contract.roomCount > 1 ? `0${contract.roomCount} غرف` : "غرفة واحدة"}، الحمام، المرحاض، المطبخ .
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p>
-                      - L'accord stipule que le Promoteur Immobilier s’engage à édifier une unité immobilière à usage d'habitation au profit de l’Acquéreur, désignée comme suit :
-                    </p>
-                    <p>
-                      <span className="font-bold">L'Appartement : </span> de type {contract.apartmentType}, situé au {getFloorFr(contract.floor)} du bâtiment {contract.building} de la Résidence {contract.projectNameFr || (projectDetails?.nameFr || contract.project?.split("(")[0]?.trim())} ({projectDetails?.municipalityFr || "Bordj El Kiffan, Alger"}), portant le code d'identification : <span className="font-sans font-bold">{contract.apartmentCode}</span>, d'une superficie globale approximative de <span className="font-sans font-bold">{contract.area}</span> m² {contract.parking?.exists ? ` comprenant également une quote-part d'une place de stationnement n° ${contract.parking.number} située au sous-sol` : " à l'exclusion définitive de toute place de stationnement située au sous-sol"}, dument délimitée par ses murs mitoyens et vides. L'appartement comprend : {contract.roomCount} pièce(s), salle de bain, toilettes et cuisine.
-                    </p>
-                  </>
-                )}
-
-                <div className="text-center my-4">
-                  <h2 className={`text-lg font-bold border-b-2 inline-block px-8 pb-0.5 ${
-                    isRoyal ? 'border-emerald-850 text-emerald-900 font-bold' : 'border-black'
-                  }`}>
-                    {language === "ar" ? "تعيين العقار المتفق على تشييده" : "LIMITES DE L'IMMEUBLE À CONSTRUIRE"}
-                  </h2>
-                </div>
-                {language === "ar" ? (
-                  <p>
-                    ـــــ تعد الشقة سالفة الذكر جزء من ضمن المحيط العمراني لبلدية {getMunicipality(contract.project)}.
-                  </p>
-                ) : (
-                  <p>
-                    - L'immeuble dument délimité ci-dessus fait partie de la commune de {projectDetails?.municipalityFr || "Bordj El Kiffan, Alger"}.
-                  </p>
-                )}
-              </div>
-            </div>
+        {/* PAGE 2 */}
+        <div className="contract-page rtl font-arabic relative flex flex-col">
+          {isRoyal && (
+            <div className="absolute inset-4 border-2 border-double border-amber-600/20 pointer-events-none rounded-2xl z-0" />
+          )}
+          <div className="py-2 flex-grow z-10 relative">
+            <h3 className={`text-xl font-bold border-b-2 inline-block mb-4 pb-0.5 ${
+              isRoyal ? 'border-emerald-800 text-emerald-950' : 'border-black'
+            }`}>المشتري</h3>
             
-            {/* Footer for Page 2 */}
-            <div className="contract-footer z-10">
-              <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
-              <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">
-                {language === "ar" ? "الصفحة 2 من 7" : "Page 2 sur 7"}
-              </div>
+            <div className={`text-base mb-4 leading-relaxed space-y-1 p-5 rounded-2xl ${
+              isRoyal ? 'bg-emerald-50/10 border border-emerald-800/10' : ''
+            }`}>
+              <p>
+                {contract.gender}: <span className="font-bold">{contract.customerName}</span>، والمشار إليه في هذا العقد بصفة (المشتري).
+              </p>
+              <p>
+                {contract.idType || "الحامل(ة) لبطاقة التعريف"} رقم <span className="font-sans">{contract.idNumber}</span>
+              </p>
+              <p>
+                الصادرة بتاريخ: <span className="font-sans">{contract.idIssueDate}</span> وتنتهي صلاحيتها بتاريخ: <span className="font-sans">{contract.idExpiryDate}</span>
+              </p>
+              <p>
+                العنوان: {contract.address}
+              </p>
+              <p>
+                - رقم الهاتف : <span className="font-sans">{contract.phoneNumber}</span>
+              </p>
+              {contract.notaryName && (
+                <div className={`mt-3 pt-3 border-t ${isRoyal ? 'border-emerald-800/10' : 'border-black/10'}`}>
+                  <p className="font-bold">
+                    ـ عقد الوعد بالبيع لدى {contract.notaryGender || "الموثق(ة)"} {cleanNotaryName(contract.notaryName)}
+                  </p>
+                  <p>
+                    بتاريخ: <span className="font-sans">{contract.promiseOfSaleDate || contract.signingDate}</span>
+                  </p>
+                </div>
+              )}
             </div>
+
+            <div className="text-center my-4">
+              <h2 className={`text-xl font-bold border-b-2 inline-block px-12 pb-0.5 ${
+                isRoyal ? 'border-emerald-800 text-emerald-950' : 'border-black'
+              }`}>المـوضــــــــــــــــــــــوع</h2>
+            </div>
+
+            <div className="space-y-3 text-base leading-relaxed">
+              <p>
+                - ينص الاتفاق على أن يقوم المرقي العقاري بتشييد شقة سكنية للمشتري وهي:
+              </p>
+              <p>
+                <span className="font-bold">الشقة :</span> فئة {contract.apartmentType}. تقع في {convertFloorToOrdinal(contract.floor)} في العمارة {contract.building} في إقامة {getFullProjectInfo(contract.project)} تحمل الرمز <span className="font-sans font-bold">{contract.apartmentCode}</span> مساحتها الإجمالية حوالي <span className="font-sans font-bold">{contract.area}</span> متر مربع {contract.parking?.exists ? ` بالإضافة إلى حصة موقف السيارات رقم ${contract.parking.number} الكائن في القبو` : " دون أن يشمل هذا البيع موقف السيارات الكائن في القبو"} بما فيها الحوائط و الفراغات، تحتوي الشقة على : {contract.roomCount > 1 ? `0${contract.roomCount} غرف` : "غرفة واحدة"}، الحمام، المرحاض، المطبخ .
+              </p>
+            </div>
+
+            <div className="text-center my-4">
+              <h2 className={`text-lg font-bold border-b-2 inline-block px-8 pb-0.5 ${
+                isRoyal ? 'border-emerald-800 text-emerald-950' : 'border-black'
+              }`}>تعييـــــــــــــــــن العقار المتفق على تشييده</h2>
+            </div>
+            <p className="text-base mb-4">
+              ـــــ تعد الشقة سالفة الذكر جزء من ضمن المحيط العمراني {getMunicipality(contract.project)}.
+            </p>
           </div>
+          
+          {/* Footer for Page 2 */}
+          <div className="contract-footer z-10">
+            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 2 من 7</div>
+          </div>
+        </div>
 
         {/* PAGE 3 */}
         <div className="contract-page rtl font-arabic relative flex flex-col">
@@ -2267,8 +2928,10 @@ export default function ContractPrint() {
             <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 7 من 7</div>
           </div>
         </div>
+      </>
+    )}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
 }
