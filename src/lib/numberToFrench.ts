@@ -86,9 +86,9 @@ export function convertToFrenchWords(amount: number): string {
 
   try {
     const wordStr = process(amount).replace(/\s+/g, " ").trim();
-    return wordStr.charAt(0).toUpperCase() + wordStr.slice(1) + " Dinars Algériens";
+    return wordStr.charAt(0).toUpperCase() + wordStr.slice(1);
   } catch (error) {
-    return amount.toLocaleString() + " Dinars Algériens";
+    return amount.toLocaleString();
   }
 }
 

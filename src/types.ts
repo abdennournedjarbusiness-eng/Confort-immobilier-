@@ -17,6 +17,7 @@ export interface Contract {
   projectNameFr?: string;
   municipality?: string;
   municipalityFr?: string;
+  location?: string;
   locationFr?: string;
   notaryId?: string;
   notaryName?: string;

@@ -85,6 +85,11 @@ export default function ContractForm({ user }: { user: User }) {
     floor: "1",
     building: "A",
     project: "",
+    municipality: "",
+    municipalityFr: "",
+    location: "",
+    locationFr: "",
+    projectNameFr: "",
     apartmentCode: "",
     area: "",
     parking: { exists: false, number: "", price: 0 },
@@ -183,6 +188,10 @@ export default function ContractForm({ user }: { user: User }) {
       ...prev,
       project: projectName,
       municipality: project?.municipality || "",
+      municipalityFr: project?.municipalityFr || "",
+      location: project?.location || "",
+      locationFr: project?.locationFr || "",
+      projectNameFr: project?.nameFr || "",
       // Reset building if not in project
       building: project && project.buildings.length > 0 ? project.buildings[0] : (prev.building || "A")
     }));
@@ -290,17 +299,19 @@ export default function ContractForm({ user }: { user: User }) {
         userId: user.uid, // Ensure userId is always set
         updatedAt: serverTimestamp(),
         // Embed project details directly into the contract document for absolute robustness
-        landOwnerName: selectedProject?.landOwnerName || "",
-        landOwnerNameFr: selectedProject?.landOwnerNameFr || "",
-        landOwnerGender: selectedProject?.landOwnerGender || "السيد",
-        partnershipNotaryName: selectedProject?.partnershipNotaryName || "",
-        partnershipNotaryNameFr: selectedProject?.partnershipNotaryNameFr || "",
-        partnershipNotaryGender: selectedProject?.partnershipNotaryGender || "موثق",
-        partnershipDate: selectedProject?.partnershipDate || "",
-        partnershipContractNumber: selectedProject?.partnershipContractNumber || "",
-        projectNameFr: selectedProject?.nameFr || "",
-        municipalityFr: selectedProject?.municipalityFr || "",
-        locationFr: selectedProject?.locationFr || ""
+        landOwnerName: selectedProject?.landOwnerName || formData.landOwnerName || "",
+        landOwnerNameFr: selectedProject?.landOwnerNameFr || formData.landOwnerNameFr || "",
+        landOwnerGender: selectedProject?.landOwnerGender || formData.landOwnerGender || "السيد",
+        partnershipNotaryName: selectedProject?.partnershipNotaryName || formData.partnershipNotaryName || "",
+        partnershipNotaryNameFr: selectedProject?.partnershipNotaryNameFr || formData.partnershipNotaryNameFr || "",
+        partnershipNotaryGender: selectedProject?.partnershipNotaryGender || formData.partnershipNotaryGender || "موثق",
+        partnershipDate: selectedProject?.partnershipDate || formData.partnershipDate || "",
+        partnershipContractNumber: selectedProject?.partnershipContractNumber || formData.partnershipContractNumber || "",
+        projectNameFr: formData.projectNameFr || selectedProject?.nameFr || "",
+        municipality: formData.municipality || selectedProject?.municipality || "",
+        municipalityFr: formData.municipalityFr || selectedProject?.municipalityFr || "",
+        location: formData.location || selectedProject?.location || "",
+        locationFr: formData.locationFr || selectedProject?.locationFr || ""
       };
 
       if (id) {
@@ -608,6 +619,72 @@ export default function ContractForm({ user }: { user: User }) {
                       </button>
                     </div>
                   </div>
+
+                  {/* موقع المشروع والبلدية (عربي / فرنسي) */}
+                  <div className="md:col-span-2 border-t border-b border-white/5 py-6 my-2 bg-brand-input/10 p-5 rounded-2xl">
+                    <h4 className="text-xs font-bold text-brand-accent mb-4 tracking-wider uppercase">معلومات موقع المشروع والبلدية (تُملأ تلقائياً من الإقامة ويمكنك تعديلها)</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-right">
+                      <div className="space-y-2">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">البلدية بالعربية</label>
+                        <input
+                          type="text"
+                          name="municipality"
+                          value={formData.municipality || ""}
+                          onChange={handleChange}
+                          placeholder="مثال: بن رحمان"
+                          className="w-full px-4 py-4 bg-brand-input border border-white/5 rounded-xl text-slate-100 focus:ring-2 focus:ring-brand-accent outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider text-left" dir="ltr">Commune (Fr)</label>
+                        <input
+                          type="text"
+                          name="municipalityFr"
+                          value={formData.municipalityFr || ""}
+                          onChange={handleChange}
+                          placeholder="Ex: Ben Rahmane"
+                          className="w-full px-4 py-4 bg-brand-input border border-white/5 rounded-xl text-slate-100 focus:ring-2 focus:ring-brand-accent outline-none font-sans"
+                          dir="ltr"
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider text-left" dir="ltr">Nom de la Résidence (Fr)</label>
+                        <input
+                          type="text"
+                          name="projectNameFr"
+                          value={formData.projectNameFr || ""}
+                          onChange={handleChange}
+                          placeholder="Ex: Aqua"
+                          className="w-full px-4 py-4 bg-brand-input border border-white/5 rounded-xl text-slate-100 focus:ring-2 focus:ring-brand-accent outline-none font-sans"
+                          dir="ltr"
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">العنوان الكامل بالتفصيل بالعربية</label>
+                        <input
+                          type="text"
+                          name="location"
+                          value={formData.location || ""}
+                          onChange={handleChange}
+                          placeholder="مثال: حي بن مراد، بلدية بن رحمان، ولاية الجزائر"
+                          className="w-full px-4 py-4 bg-brand-input border border-white/5 rounded-xl text-slate-100 focus:ring-2 focus:ring-brand-accent outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider text-left" dir="ltr">Adresse complète en français</label>
+                        <input
+                          type="text"
+                          name="locationFr"
+                          value={formData.locationFr || ""}
+                          onChange={handleChange}
+                          placeholder="Ex: Ben M'rad, Bordj El Kiffan, Alger"
+                          className="w-full px-4 py-4 bg-brand-input border border-white/5 rounded-xl text-slate-100 focus:ring-2 focus:ring-brand-accent outline-none font-sans"
+                          dir="ltr"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">العمارة / العمارة</label>
                     <select

@@ -3,6 +3,7 @@ import { GroupedClauses } from "./ContractPrint";
 
 interface FrenchContractPagesProps {
   contract: Contract;
+  projectDetails?: any;
   isRoyal: boolean;
   themeColors: {
     borderRAccent: string;
@@ -19,6 +20,7 @@ interface FrenchContractPagesProps {
 
 export default function FrenchContractPages({
   contract,
+  projectDetails,
   isRoyal,
   themeColors,
   totalReceivedReact,
@@ -42,11 +44,62 @@ export default function FrenchContractPages({
       .trim();
   };
 
+  const getFrenchProjectName = () => {
+    if (contract.projectNameFr?.trim()) {
+      return contract.projectNameFr.trim();
+    }
+    if (projectDetails?.nameFr?.trim()) {
+      return projectDetails.nameFr.trim();
+    }
+    let baseName = contract.project || "";
+    const bracketIndex = baseName.indexOf("(");
+    if (bracketIndex !== -1) {
+      baseName = baseName.substring(0, bracketIndex).trim();
+    }
+    return baseName;
+  };
+
+  const getCleanMunicipalityFr = () => {
+    let muni = contract.municipalityFr?.trim() || projectDetails?.municipalityFr?.trim();
+    if (!muni) {
+      muni = getMunicipality(contract.project || "");
+    }
+    return muni
+      .replace(/^Commune de\s+/i, "")
+      .replace(/^Commune\s+/i, "")
+      .replace(/^la commune de\s+/i, "")
+      .trim();
+  };
+
+  const getCleanLocationFr = () => {
+    let loc = contract.locationFr?.trim() || projectDetails?.locationFr?.trim();
+    if (!loc) return "";
+    return loc
+      .replace(/^sis à\s+/i, "")
+      .replace(/^situé à\s+/i, "")
+      .replace(/^à\s+/i, "")
+      .trim();
+  };
+
+  const getWilayaFr = () => {
+    const textToSearch = `${projectDetails?.municipalityFr || ""} ${projectDetails?.locationFr || ""} ${contract?.municipalityFr || ""} ${contract?.locationFr || ""}`.toLowerCase();
+    if (textToSearch.includes("blida")) return "Wilaya de Blida";
+    if (textToSearch.includes("tipaza")) return "Wilaya de Tipaza";
+    if (textToSearch.includes("boumerdes") || textToSearch.includes("boumerdès")) return "Wilaya de Boumerdès";
+    if (textToSearch.includes("oran")) return "Wilaya d'Oran";
+    if (textToSearch.includes("constantine")) return "Wilaya de Constantine";
+    const match = textToSearch.match(/wilaya\s+(?:de\s+|d'|d’)?(\S+)/i);
+    if (match) return `Wilaya de ${match[1]}`;
+    return "Wilaya d'Alger";
+  };
+
   const actualCustomerName = contract.customerNameFr?.trim() || contract.customerName;
   const actualAddress = contract.addressFr?.trim() || contract.address;
   const actualNotaryName = contract.notaryNameFr?.trim() || cleanNotaryName(contract.notaryName || "");
-  const actualProjectName = contract.projectNameFr?.trim() || getFullProjectInfo(contract.project);
-  const actualMunicipality = contract.municipalityFr?.trim() || getMunicipality(contract.project);
+  const actualProjectName = getFrenchProjectName();
+  const actualMunicipality = getCleanMunicipalityFr();
+  const actualLocationFr = getCleanLocationFr();
+  const actualWilayaFr = getWilayaFr();
   const genderWord = contract.gender === 'السيد' ? 'Monsieur' : 'Madame';
   const prefixGenderWord = contract.gender === 'السيد' ? 'M.' : 'Mme';
 
@@ -192,9 +245,14 @@ export default function FrenchContractPages({
               isRoyal ? 'border-emerald-800 text-emerald-950' : 'border-black text-slate-900'
             }`}>Désignation du bien à édifier</h2>
           </div>
-          <p className="text-sm mb-4 leading-relaxed">
-            ــــ L'appartement susvisé fait partie intégrante du complexe immobilier érigé dans la circonscription foncière et administrative relevant de la Commune de <span className="font-bold text-slate-950">{actualMunicipality}</span>, Wilaya d'Alger.
+          <p className="text-sm mb-2 leading-relaxed">
+            ــــ L'appartement susvisé fait partie intégrante du complexe immobilier érigé dans la circonscription foncière et administrative relevant de la Commune de <span className="font-bold text-slate-950">{actualMunicipality}</span>, {actualWilayaFr}.
           </p>
+          {actualLocationFr && (
+            <p className="text-sm mb-4 leading-relaxed">
+              ــــ Le présent appartement fait partie intégrante du périmètre urbain situé à: <span className="font-bold text-slate-950">{actualLocationFr}</span>.
+            </p>
+          )}
         </div>
         
         <div className="contract-footer z-10 mt-auto">
@@ -293,7 +351,7 @@ export default function FrenchContractPages({
                 : 'border-red-800 bg-red-50/5 text-red-900 border-dashed'
             }`}>
               <span className="font-bold uppercase block mb-1">Clause de prix ferme, définitif et non révisable :</span>
-              Les deux parties contractantes acceptent explicitement que le coût d’acquisition net arrêté ci-dessus revêt un caractère strictement forfaitaire, ferme, irrévocable, intangible et non révisable. Les variations de prix des matériaux de construction, de la main-d’œuvre, l'inflation financière ou économique ou de toute autre taxe ultérieure n’auront aucune incidence sur le montant arrêté. Ce coût n’inclut que la valeur privative du bien; l'Acquéreur demeure seul redevable des droits d'enregistrement, frais de publicité foncière de la Conservation Foncière, honoraires notariés de rédactions d'actes, taxes fiscales d'urbanisme municipales, ainsi que les contributions d'établissement de copropriété.
+              Les parties conviennent expressément que le prix de vente global est ferme, définitif et non révisable. Ce prix représente exclusivement la valeur matérielle du bien immobilier. Les deux parties (le Promoteur et l'Acquéreur) supportent à parts égales les honoraires de rédaction de cet acte notarié, ou selon des proportions différentes conformément à l'annexe jointe. En revanche, l'Acquéreur supporte seul les droits d'enregistrement, les frais de publicité foncière auprès de la Conservation Foncière, ainsi que les charges de copropriété. Le Promoteur s'acquitte de l'ensemble des taxes et impôts légaux incombant à sa qualité de professionnel de la promotion immobilière jusqu'à la livraison du projet.
             </div>
           </div>
         </div>
@@ -566,14 +624,14 @@ export default function FrenchContractPages({
         {isRoyal && (
           <div className="absolute inset-4 border-2 border-double border-amber-600/20 pointer-events-none rounded-2xl z-0" />
         )}
-        <div className="flex flex-col flex-grow py-4 justify-between z-10 relative">
-          <div className="mb-4">
+        <div className="flex flex-col flex-grow justify-center items-center py-6 space-y-12 z-10 relative">
+          <div className="text-center w-full mb-2">
              <p className="text-lg font-bold">
               Fait de bonne foi à Bordj El Kiffan, le: <span className={`font-sans font-bold px-1 ${isRoyal ? 'text-emerald-950' : 'text-slate-900'}`}>{contract.signingDate}</span>
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-12 text-center text-base font-bold mt-4">
+          <div className="grid grid-cols-2 gap-12 text-center text-base font-bold w-full max-w-2xl mx-auto px-4">
             <div className="space-y-4">
               <div className="h-14 flex flex-col justify-between">
                 <p className={isRoyal ? 'text-emerald-950' : 'text-slate-900'}>Signature et empreinte digitale de l'Acquéreur</p>

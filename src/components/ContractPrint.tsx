@@ -115,7 +115,7 @@ export function categorizeClauses(clausesList: string[]): GroupedClauses {
   });
 
   if (groups.taxes.length === 0) {
-    groups.taxes.push("يتحمل المشتري وحده، بصفة حصرية ونهائية، كافة التكاليف، والرسوم، والضرائب المتعلقة بإبرام التعاقد ونقل الملكية، والتي تشمل على سبيل المثال لا الحصر: كافة أتعاب التوثيق، حقوق ورسوم التسجيل لدى إدارة الضرائب، رسوم الإشهار العقاري لدى المحافظة العقارية، ومصاريف الطابع.");
+    groups.taxes.push("يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.");
   }
 
   return groups;
@@ -177,20 +177,118 @@ export default function ContractPrint() {
   const LOGO_URL = logo;
 
   const getMunicipality = (projectStr: string) => {
+    if (contract?.municipality) {
+      return contract.municipality.trim();
+    }
     if (projectDetails?.municipality) {
-      return projectDetails.municipality;
+      return projectDetails.municipality.trim();
     }
     const match = projectStr.match(/\(([^)]+)\)/);
-    if (match) return match[1].trim();
-    return "برج الكيفان";
+    if (match) {
+      return match[1].trim();
+    }
+    return "";
+  };
+
+  const getCleanMunicipalityAr = () => {
+    let muni = getMunicipality(contract?.project || "");
+    return muni
+      .replace(/^ببلدية\s+/, "")
+      .replace(/^بلدية\s+/, "")
+      .replace(/^ببلدية/, "")
+      .replace(/^بلدية/, "")
+      .trim();
+  };
+
+  const getCleanMunicipalityFr = () => {
+    let muni = contract?.municipalityFr?.trim() || projectDetails?.municipalityFr?.trim();
+    if (!muni) {
+      muni = getMunicipality(contract?.project || "");
+    }
+    return muni
+      .replace(/^Commune de\s+/i, "")
+      .replace(/^Commune\s+/i, "")
+      .replace(/^la commune de\s+/i, "")
+      .trim();
+  };
+
+  const getCleanProjectLocationAr = () => {
+    let loc = "";
+    if (contract?.location) {
+      loc = contract.location.trim();
+    } else if (projectDetails?.location) {
+      loc = projectDetails.location.trim();
+    } else {
+      loc = getMunicipality(contract?.project || "");
+    }
+    return loc
+      .replace(/^الكائن\s+بـ\s*/, "")
+      .replace(/^الكائن\s+ب\s*/, "")
+      .replace(/^بـ\s*/, "")
+      .replace(/^ب\s+/, "")
+      .trim();
+  };
+
+  const getCleanProjectLocationFr = () => {
+    let loc = "";
+    if (contract?.locationFr) {
+      loc = contract.locationFr.trim();
+    } else if (projectDetails?.locationFr) {
+      loc = projectDetails.locationFr.trim();
+    }
+    return loc
+      .replace(/^sis à\s+/i, "")
+      .replace(/^situé à\s+/i, "")
+      .replace(/^à\s+/i, "")
+      .trim();
   };
 
   const getFullProjectInfo = (projectStr: string) => {
     if (projectDetails?.name) {
-      const muni = projectDetails.municipality ? ` (${projectDetails.municipality})` : "";
+      const cleanMuni = getCleanMunicipalityAr();
+      const muni = cleanMuni ? ` (${cleanMuni})` : "";
       return `${projectDetails.name}${muni}`;
     }
     return projectStr;
+  };
+
+  const getFullProjectInfoFr = (projectStr: string) => {
+    if (contract?.projectNameFr?.trim()) {
+      return contract.projectNameFr.trim();
+    }
+    if (projectDetails?.nameFr?.trim()) {
+      return projectDetails.nameFr.trim();
+    }
+    let baseName = projectStr;
+    const bracketIndex = baseName.indexOf("(");
+    if (bracketIndex !== -1) {
+      baseName = baseName.substring(0, bracketIndex).trim();
+    }
+    return baseName;
+  };
+
+  const getWilayaAr = () => {
+    const textToSearch = `${projectDetails?.municipality || ""} ${projectDetails?.location || ""} ${contract?.municipality || ""} ${contract?.location || ""}`.toLowerCase();
+    if (textToSearch.includes("البليدة") || textToSearch.includes("بليدة")) return "ولاية البليدة";
+    if (textToSearch.includes("تيبازة") || textToSearch.includes("تيبازه")) return "ولاية تيبازة";
+    if (textToSearch.includes("بومرداس")) return "ولاية بومرداس";
+    if (textToSearch.includes("وهران")) return "ولاية وهران";
+    if (textToSearch.includes("قسنطينة")) return "ولاية قسنطينة";
+    const match = textToSearch.match(/ولاية\s+(\S+)/);
+    if (match) return match[0];
+    return "ولاية الجزائر";
+  };
+
+  const getWilayaFr = () => {
+    const textToSearch = `${projectDetails?.municipalityFr || ""} ${projectDetails?.locationFr || ""} ${contract?.municipalityFr || ""} ${contract?.locationFr || ""}`.toLowerCase();
+    if (textToSearch.includes("blida")) return "Wilaya de Blida";
+    if (textToSearch.includes("tipaza")) return "Wilaya de Tipaza";
+    if (textToSearch.includes("boumerdes") || textToSearch.includes("boumerdès")) return "Wilaya de Boumerdès";
+    if (textToSearch.includes("oran")) return "Wilaya d'Oran";
+    if (textToSearch.includes("constantine")) return "Wilaya de Constantine";
+    const match = textToSearch.match(/wilaya\s+(?:de\s+|d'|d’)?(\S+)/i);
+    if (match) return `Wilaya de ${match[1]}`;
+    return "Wilaya d'Alger";
   };
 
   useEffect(() => {
@@ -261,43 +359,32 @@ export default function ContractPrint() {
     "غرامة التأخير: في حالة تجاوز تأخر المرقي العقاري في التسليم مدة ثلاثة (03) أشهر عن الأجل المتفق عليه، يستحق المشتري غرامة تأخير قدرها 0.5% من السعر الإجمالي للعقار عن كل شهر تأخير.",
     "لا يعتبر التسليم تاماً ومجزياً ونافذاً إلا بعد إتمام ربط الوحدة العقارية بالشبكات الضرورية بالكامل، بما يشمل الكهرباء والغاز والمياه وشبكة الصرف الصحي.",
     "يلتزم المرقي العقاري بتمكين المشتري من تعيين ومعاينة مراحل إنجاز الأشغال بصفة دورية بتنسيق مسبق، وموافاة المشتري بتقرير عن تقدم البناء عند الطلب.",
-     "في حال تأخر المرقي العقاري عن التسليم لسبب غير قاهر وتجاوزت مدة التأخير ستة (06) أشهر، يحق للمشتري المطالبة بفسخ العقد فوراً مع استرجاع المبالغ المدفوعة مضافاً إليها غرامات التأخير المستحقة، كما يُستثنى هذا الاسترداد من شرط توفر زبون بديل، ويعتبر التزاماً مالياً مباشراً على عاتق المرقي العقاري.",
+    "في حال تأخر المرقي العقاري عن التسليم لسبب غير قاهر وتجاوزت مدة التأخير ستة (06) أشهر، يحق للمشتري المطالبة بفسخ العقد فوراً مع استرجاع المبالغ المدفوعة مضافاً إليها غرامات التأخير المستحقة، كما يُستثنى هذا الاسترداد من شرط توفر زبون بديل، ويعتبر التزاماً مالياً مباشراً على عاتق المرقي العقاري.",
     "في حال تخلف المشتري عن سداد أي دفعة مستحقة من دفعات الجدول المالي لأكثر من 30 يوماً من تاريخ إعذاره كتابياً بطرق رسمية، يحق للمرقي العقاري فسخ العقد تلقائياً مع تصفية الحساب واسترداد المشتري لأمواله بالخصم منها 5% كأتعاب تسيير إداري وتسويق.",
     "في حالة توقف المشروع نهائياً أو تعذر إتمامه لأي سبب كان، تلتزم المؤسسة بإعادة كامل المبالغ المدفوعة للمشتري في أجل أقصاه 90 يوماً مع كافة التعويضات والضمانات القانونية المتاحة لصالحه السارية طبقاً للتشريع والتنظيم العقاري الجاري به العمل.",
     "يعتبر هذا الملحق جزءاً لا يتجزأ من اتفاقية حجز العقار وعقد الوعد بالبيع الرسمي، ولا يمكن العمل به أو الاحتجاج ببنوده بصفة مستقلة عنهما.",
     "في حال وفاة المشتري، تنتقل كافة حقوق والتزامات هذا التعاقد بصفة فورية وتلقائية إلى ورثته الشرعيين بناء على فريضة شرعية رسمية وموثقة.",
     "يصرح المرقي العقاري بصفة رسمية وملزمة بأن الأرض موضوع التشييد تندرج ضمن إطار عقد شراكة موثق ومشهر مع صاحب الأرض الأصلي، ويلتزم بإعلام المشتري وإخطاره فوراً بأي تغيير قد يطرأ على رخصة البناء أو الوضع القانوني والتمويلي للعقار.",
     "يلتزم المشتري بعدم التصرف في العقار بأي شكل من الأشكال أو نقل الحيازة (سواء بالبيع، رهن، إيجار، أو تنازل) قبل استكمال كامل القيمة المالية المتفق عليها وإمضاء محضر التسليم النهائي بصيغة رسمية.",
-    "يتولى المرقي العقاري بصفة حصرية إدارة وتسيير الأجزاء المشتركة للإقامة وصيانتها وحراستها لمدة سنة كاملة (12 شهراً) تبدأ من تاريخ توقيع محضر التسليم النهائي. ويتعهد المشتري بدفع حصته النسبية من مصاريف هذا التسيير (والتي تشمل على سبيل المثال لا الحصر صيانة المصعد، إنارة ومياه الأجزاء المشتركة، الحراسة، والنظافة) مسبقاً وبشكل دوري وفق القيمة التي يحددها المسير، ولا تندرج هذه المصاريف نهائياً ضمن السعر الصافي للعقار.",
-    "لايجوز إدخال أي تعديل أو تغيير أو إلغاء على أي من أحكام هذه الاتفاقية إلا بموجب ملحق عقد رسمي ومكتوب يبرم ويلحق صراحة بهذا العقد، ويوقعه الطرفان بالبصمة والإمضاء المشترك، ليعتبر بمثابة جزء لا يتجزأ من شروط التعاقد الأصلية.",
-    "يخضع هذا العقد وتفسيره وبنوده للقانون الجزائري الساري ومقتضياته الترقوية العقارية، لا سيما القانون رقم 04-11، ويُحال أي نزاع يتعذر حله ودياً خلال أجل 30 يوماً إلى الاختصاص الحصري للمحكمة الابتدائية بدار البيضاء بالجزائر العاصمة."
+    "يتولى المرقي العقاري بصفة حصرية إدارة وتسيير الأجزاء المشتركة للإقامة وصيانتها وحراستها لمدة سنة كاملة (12 شهراً) تبدأ من تاريخ توقيع محضر التسليم النهائي. ويتعهد المشتري بدفع حصته النسبية من مصاريف هذا التسيير (والتي تشمل على سبيل المثال لا الحصر صيانة المصعد، إنارة ومياه الأجزاء المشتركة، الحراسة، والنظافة) مسبقاً وبشكل دوري وفق القيمة التي يحددها المسير، ولا تندرج هذه المصاريف نهائياً ضمن السعر الصافي للعقار."
   ];
 
   const getPartnershipClauseText = () => {
-    const landOwnerName = contract?.landOwnerName || projectDetails?.landOwnerName;
+    // Owners & notary
+    const landOwnerName = contract?.landOwnerName?.trim() || projectDetails?.landOwnerName?.trim() || "شلابي محمد";
     const landOwnerGender = contract?.landOwnerGender || projectDetails?.landOwnerGender || "السيد";
-    const partnershipNotaryName = contract?.partnershipNotaryName || projectDetails?.partnershipNotaryName;
-    const partnershipNotaryGender = contract?.partnershipNotaryGender || projectDetails?.partnershipNotaryGender || "موثق";
-    const partnershipDate = contract?.partnershipDate || projectDetails?.partnershipDate;
-    const partnershipContractNumber = contract?.partnershipContractNumber || projectDetails?.partnershipContractNumber;
+    
+    const partnershipNotaryName = contract?.partnershipNotaryName?.trim() || projectDetails?.partnershipNotaryName?.trim() || "بن مراد عبد القادر";
+    const partnershipNotaryGender = contract?.partnershipNotaryGender || projectDetails?.partnershipNotaryGender || "الأستاذ الموثق";
+    
+    // Dates & numbers
+    const partnershipDate = contract?.partnershipDate || projectDetails?.partnershipDate || "12/05/2026";
+    const partnershipContractNumber = contract?.partnershipContractNumber || projectDetails?.partnershipContractNumber || "123/12";
 
-    if (landOwnerName) {
-      const ownerNode = `${landOwnerGender} ${landOwnerName}`;
-      const notaryNode = partnershipNotaryName 
-        ? ` موثق عند ${partnershipNotaryGender} ${partnershipNotaryName}` 
-        : "";
-      const dateNode = partnershipDate 
-        ? ` بتاريخ ${partnershipDate}` 
-        : "";
-      const numberNode = partnershipContractNumber 
-        ? ` المسجل تحت رقم ${partnershipContractNumber}` 
-        : "";
-      
-      let detailsString = `بموجب عقد شراكة ${notaryNode} مع صاحب الأرض الأصلي ${ownerNode}${dateNode}${numberNode}`;
-      
-      return `يصرح المرقي العقاري بصفة رسمية وملزمة بأن الأرض موضوع التشييد تندرج ضمن إطار عقد شراكة موثق ومشهر ${detailsString}، ويلتزم بإعلام المشتري وإخطاره فوراً بأي تغيير قد يطرأ على رخصة البناء أو الوضع القانوني والتمويلي للعقار.`;
-    }
-    return "يصرح المرقي العقاري بصفة رسمية وملزمة بأن الأرض موضوع التشييد تندرج ضمن إطار عقد شراكة موثق ومشهر مع صاحب الأرض الأصلي، ويلتزم بإعلام المشتري وإخطاره فوراً بأي تغيير قد يطرأ على رخصة البناء أو الوضع القانوني والتمويلي للعقار.";
+    const ownerNode = `${landOwnerGender} ${landOwnerName}`;
+    const notaryNode = `${partnershipNotaryGender} ${partnershipNotaryName}`;
+    
+    return `يصرح المرقي العقاري بصفة رسمية، قاطعة وملزمة، بأن الأرض الحاضنة للمشروع العقاري موضوع التشييد ليست ملكاً خالصاً له، وإنما تندرج ضمن إطار عقد شراكة وتطوير عقاري، محرر في الشكل التوثيقي الرسمي بمدونة ${notaryNode} بتاريخ ${partnershipDate}، الموثق قانوناً تحت رقم ${partnershipContractNumber} مع صاحب الأرض الأصلي ${ownerNode} (وهو عقد غير مشهر بالمحافظة العقارية). ويقر المرقي العقاري بحيازة كافة الصلاحيات القانونية وحق التصرف والبيع على التصاميم للغير بموجب هذا العقد، كما يلتزم بإعلام المشتري وإخطاره فوراً بأي تعديل أو إشكال قد يطرأ على رخصة البناء، أو الوضعية القانونية, العقارية، أو التمويلية للمشروع.`;
   };
 
   const getRawClausesList = (): string[] => {
@@ -343,6 +430,7 @@ export default function ContractPrint() {
     cleaned = cleaned.replace(/المحافظة\s+محافظة/g, "المحافظة");
     
     // 4. جدة مدة -> مدة
+    cleaned = cleaned.replace(/تجاوزت\s+جدة\s+مدة/g, "تجاوزت مدة");
     cleaned = cleaned.replace(/جدة\s+مدة/g, "مدة");
     
     // 5. غرامات غرامات -> غرامات
@@ -351,12 +439,58 @@ export default function ContractPrint() {
     // 6. شلابي محمد محمد -> شلابي محمد
     cleaned = cleaned.replace(/شلابي\s+محمد\s+محمد/g, "شلابي محمد");
     cleaned = cleaned.replace(/محمد\s+محمد/g, "محمد");
+
+    // 7. عقد نا راكة -> عقد شراكة
+    cleaned = cleaned.replace(/عقد\s+نا\s+راكة/g, "عقد شراكة");
+    cleaned = cleaned.replace(/نا\s+راكة/g, "شراكة");
+    
+    // 8. قصعد كهربائي -> مصعد كهربائي
+    cleaned = cleaned.replace(/قصعد\s+كهربائي/g, "مصعد كهربائي");
+    cleaned = cleaned.replace(/قصعد/g, "مصعد");
     return cleaned;
   };
 
   const cleanNotaryName = (name: string): string => {
     if (!name) return "";
     return name.replace(/شلابي\s+محمد\s+محمد/g, "شلابي محمد").replace(/محمد\s+محمد/g, "محمد");
+  };
+
+  const getProjectLocation = (projectStr: string): string => {
+    if (projectDetails?.location) {
+      return projectDetails.location.trim();
+    }
+    if (contract?.location) {
+      return contract.location.trim();
+    }
+    return "";
+  };
+
+  const formatArabicArea = (areaStr: string) => {
+    if (!areaStr) return "";
+    if (areaStr.includes("+")) {
+      const parts = areaStr.split("+").map(p => p.trim());
+      if (parts.length === 2) {
+        return (
+          <span dir="rtl" className="inline-flex items-center gap-1">
+            <span dir="ltr" className="font-sans font-bold">{parts[0]}</span> م²
+            <span className="mx-1">مضافاً إليها</span>
+            <span dir="ltr" className="font-sans font-bold">{parts[1]}</span> م²
+          </span>
+        );
+      }
+    }
+    return <span className="font-sans font-bold" dir="ltr">{areaStr} م²</span>;
+  };
+
+  const getArabicAreaText = (areaStr: string): string => {
+    if (!areaStr) return "";
+    if (areaStr.includes("+")) {
+      const parts = areaStr.split("+").map(p => p.trim());
+      if (parts.length === 2) {
+        return `${parts[0]} م² مضافاً إليها ${parts[1]} م²`;
+      }
+    }
+    return `${areaStr} متر مربع`;
   };
 
   const cleanClauseText = (text: string): string => {
@@ -369,6 +503,8 @@ export default function ContractPrint() {
     let text = clause;
     if (clause.includes("الأرض موضوع") || (clause.includes("عقد شراكة") && clause.includes("الأرض"))) {
       text = getPartnershipClauseText();
+    } else if (clause.includes("يتحمل المشتري") && clause.includes("أتعاب التوثيق")) {
+      text = "يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.";
     }
     return cleanClauseText(normalizeClauseText(text));
   });
@@ -577,6 +713,72 @@ export default function ContractPrint() {
           .flex-col {
             flex-direction: column !important;
           }
+          .inline-block {
+            display: inline-block !important;
+          }
+          .px-10 {
+            padding-left: 40px !important;
+            padding-right: 40px !important;
+          }
+          .px-12 {
+            padding-left: 48px !important;
+            padding-right: 48px !important;
+          }
+          .text-left {
+            text-align: left !important;
+          }
+          .pt-4 {
+            padding-top: 16px !important;
+          }
+          .px-6 {
+            padding-left: 24px !important;
+            padding-right: 24px !important;
+          }
+          .pb-6 {
+            padding-bottom: 24px !important;
+          }
+          .bg-white {
+            background-color: #ffffff !important;
+          }
+          .h-\[3px\] {
+            height: 3px !important;
+          }
+          .bg-red-800 {
+            background-color: #991b1b !important;
+          }
+          .bg-emerald-800 {
+            background-color: #065f46 !important;
+          }
+          .border-emerald-800 {
+            border-color: #065f46 !important;
+          }
+          .border-emerald-800\/80 {
+            border-color: rgba(6, 95, 70, 0.8) !important;
+          }
+          .border-emerald-800\/30 {
+            border-color: rgba(6, 95, 70, 0.3) !important;
+          }
+          .border-emerald-800\/10 {
+            border-color: rgba(6, 95, 70, 0.1) !important;
+          }
+          .border-emerald-905\/20, .border-emerald-900\/20 {
+            border-color: rgba(2, 44, 34, 0.2) !important;
+          }
+          .text-emerald-800 {
+            color: #065f46 !important;
+          }
+          .text-emerald-900 {
+            color: #064e3b !important;
+          }
+          .text-emerald-950 {
+            color: #022c22 !important;
+          }
+          .bg-emerald-50\/20, .bg-emerald-50\/10, .bg-emerald-50\/5 {
+            background-color: rgba(6, 95, 70, 0.05) !important;
+          }
+          .border-amber-600\/30, .border-amber-600\/20 {
+            border-color: rgba(217, 119, 6, 0.3) !important;
+          }
           .items-center {
             align-items: center !important;
           }
@@ -717,217 +919,7 @@ export default function ContractPrint() {
             border-bottom: 2px solid #000000 !important;
           }
           .inline-block {
-            display: inline-block !important;
-          }
-          .px-10 {
-            padding-left: 40px !important;
-            padding-right: 40px !important;
-          }
-          .px-12 {
-            padding-left: 48px !important;
-            padding-right: 48px !important;
-          }
-          .text-left {
-            text-align: left !important;
-          }
-          .pt-4 {
-            padding-top: 16px !important;
-          }
-          .px-6 {
-            padding-left: 24px !important;
-            padding-right: 24px !important;
-          }
-          .pb-6 {
-            padding-bottom: 24px !important;
-          }
-          .bg-white {
-            background-color: #ffffff !important;
-          }
-          .h-\[3px\] {
-            height: 3px !important;
-          }
-          .bg-red-800 {
-            background-color: #991b1b !important;
-          }
-          .bg-emerald-800 {
-            background-color: #065f46 !important;
-          }
-          .border-emerald-800 {
-            border-color: #065f46 !important;
-          }
-          .border-emerald-800\/80 {
-            border-color: rgba(6, 95, 70, 0.8) !important;
-          }
-          .border-emerald-800\/30 {
-            border-color: rgba(6, 95, 70, 0.3) !important;
-          }
-          .border-emerald-800\/10 {
-            border-color: rgba(6, 95, 70, 0.1) !important;
-          }
-          .border-emerald-905\/20, .border-emerald-900\/20 {
-            border-color: rgba(2, 44, 34, 0.2) !important;
-          }
-          .text-emerald-800 {
-            color: #065f46 !important;
-          }
-          .text-emerald-900 {
-            color: #064e3b !important;
-          }
-          .text-emerald-950 {
-            color: #022c22 !important;
-          }
-          .bg-emerald-50\/20, .bg-emerald-50\/10, .bg-emerald-50\/5 {
-            background-color: rgba(6, 95, 70, 0.05) !important;
-          }
-          .border-amber-600\/30, .border-amber-600\/20 {
-            border-color: rgba(217, 119, 6, 0.3) !important;
-          }
-          .border-amber-600\/60 {
-            border-color: rgba(217, 119, 6, 0.6) !important;
-          }
-          .text-amber-700 {
-            color: #b45309 !important;
-          }
-          .border-double {
-            border-style: double !important;
-          }
-          .backdrop-blur-xs {
-            backdrop-filter: blur(2px) !important;
-          }
-          .shadow-xs {
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-          }
-          .shadow-md {
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-          }
-          .font-serif {
-            font-family: serif !important;
-          }
-          .text-slate-500 {
-            color: #64748b !important;
-          }
-          .py-4 {
-            padding-top: 16px !important;
-            padding-bottom: 16px !important;
-          }
-          .leading-relaxed {
-            line-height: 1.625 !important;
-          }
-          .space-y-2 > * + * {
-            margin-top: 8px !important;
-          }
-          .space-y-3 > * + * {
-            margin-top: 12px !important;
-          }
-          .space-y-4 > * + * {
-            margin-top: 16px !important;
-          }
-          .space-y-6 > * + * {
-            margin-top: 24px !important;
-          }
-          .space-y-10 > * + * {
-            margin-top: 40px !important;
-          }
-          .border-t {
-            border-top: 1px solid #000000 !important;
-          }
-          .border-black\/10 {
-            border-color: rgba(0,0,0,0.1) !important;
-          }
-          .bg-red-50\/5 {
-            background-color: #fef2f2 !important;
-          }
-          .bg-brand-accent\/5 {
-            background-color: rgba(245, 158, 11, 0.05) !important;
-          }
-          .p-4 {
-            padding: 16px !important;
-          }
-          .rounded-xl {
-            border-radius: 12px !important;
-          }
-          .border-brand-accent\/10 {
-            border-color: rgba(245, 158, 11, 0.1) !important;
-          }
-          .pr-6 {
-            padding-right: 24px !important;
-          }
-          .border-r-4 {
-            border-right: 4px solid #000000 !important;
-          }
-          .border-slate-200 {
-            border-color: #e2e8f0 !important;
-          }
-          .mt-4 {
-            margin-top: 16px !important;
-          }
-          .mt-6 {
-            margin-top: 24px !important;
-          }
-          .mt-8 {
-            margin-top: 32px !important;
-          }
-          .border-red-800 {
-            border-color: #991b1b !important;
-          }
-          .text-red-100 {
-            color: #991b1b !important; /* dark red on paper */
-        <!-- PAGE 2 -->
-        <div class="contract-page rtl font-arabic relative flex flex-col">
-          <div class="py-4 flex-grow col">
-            <h3 class="text-2xl font-bold border-b-2 border-black inline-block mb-6">الطرف الثاني</h3>
-            <div class="text-xl mb-4 leading-relaxed space-y-2">
-              <p>
-                ${contract.gender}: <span class="font-bold">${contract.customerName}</span>
-              </p>
-              <p>
-                ${contract.idType || "الحامل(ة) لبطاقة التعريف"} رقم <span class="font-sans">${contract.idNumber}</span>
-              </p>
-              <p>
-                الصادرة بتاريخ: <span class="font-sans">${contract.idIssueDate}</span> وتنتهي صلاحيتها بتاريخ: <span class="font-sans">${contract.idExpiryDate}</span>
-              </p>
-              <p>
-                العنوان: ${contract.address}
-              </p>
-              <p>
-                - رقم الهاتف : <span class="font-sans">${contract.phoneNumber}</span>
-              </p>
-              ${contract.notaryName ? `
-                <div class="mt-4 pt-4 border-t border-black/10 col">
-                  <p class="font-bold">
-                    ـ عقد الوعد بالبيع لدى ${contract.notaryGender || "الموثق(ة)"} ${contract.notaryName}
-                  </p>
-                  <p>
-                    بتاريخ: <span class="font-sans">${contract.promiseOfSaleDate || contract.signingDate}</span>
-                  </p>
-                </div>
-              ` : ""}
-            </div>
-
-            <div class="text-center my-8 col">
-              <h2 class="text-3xl font-bold border-b-2 border-black inline-block px-20">المـوضــــــــــــــــــــــوع</h2>
-            </div>
-              <div class="mt-4 space-y-3 col">
-                ${contract.reservation?.exists ? `
-                  <p class="text-base md:text-lg">
-                    ـ تم دفع دفعة إضافية بتاريخ توقيع هذا العقد قدرها: <span class="font-bold font-sans">${contract.downPayment.toLocaleString()} دج</span>
-                    <br />
-                    أي: (<span class="font-bold">${convertToArabicWords(contract.downPayment)}</span>).
-                  </p>
-                  <p class="text-base md:text-lg">
-                    ـ مجموع ما تم استلامه من المشتري حتى الآن: <span class="font-bold font-sans">${totalReceivedLeg.toLocaleString()} دج</span>
-                    <br />
-                    أي: (<span class="font-bold">${convertToArabicWords(totalReceivedLeg)}</span>).
-                  </p>
-                ` : `
-                  <p class="text-base md:text-lg">
-                    ـ مجموع ما تم استلامه من المشتري حتى الآن: <span class="font-bold font-sans">${totalReceivedLeg.toLocaleString()} دج</span>
-                    <br />
-                    أي: (<span class="font-bold">${convertToArabicWords(totalReceivedLeg)}</span>).
-                  </p>
-                `}
-
-                ${totalParkingAndApartmentPrice > totalReceivedLeg ? `
+                         ${totalParkingAndApartmentPrice > totalReceivedLeg ? `
                   <p class="text-base md:text-lg">
                     ـ المبلغ المتبقي في ذمة المشتري (<span class="font-sans font-bold">${totalParkingAndApartmentPrice.toLocaleString()} دج</span> - <span class="font-sans font-bold">${totalReceivedLeg.toLocaleString()} دج</span>): <span class="font-bold font-sans">${remainingBalanceLeg.toLocaleString()} دج</span>
                     <br />
@@ -936,11 +928,24 @@ export default function ContractPrint() {
                 ` : `
                   <p class="font-bold text-center py-2 bg-slate-100 rounded-xl border-2 border-slate-200 text-sm">لقد تم تسديد كامل المبلغ الإجمالي للعقار.</p>
                 `}
-              </div>�تصادية أو الطارئة. كما يعتبر هذا السعر صافياً يغطي حصراً قيمة العقار؛ وعليه، يتحمل الطرف الثاني وحده، بصفة حصرية ونهائية، كافة التكاليف، والرسوم، والضرائب المتعلقة بإبرام التعاقد ونقل الملكية، والتي تشمل على سبيل المثال لا الحصر: كافة أتعاب التوثيق، حقوق ورسوم التسجيل لدى إدارة الضرائب، رسوم الإشهار العقاري لدى المحافظة العقارية، مصاريف الطابع، ومساهمات تسيير الأجزاء المشتركة . يخلي الطرف الأول مسؤوليته التامة من أي مطالبات مالية خارج هذا السعر الصافي والرسوم المحددة للطرف الثاني.
               </div>
-            </div>� التوثيق، حقوق ورسوم التسجيل لدى إدارة الضرائب، رسوم الإشهار العقاري لدى المحافظة العقارية، مصاريف الطابع، ومساهمات تسيير الأجزاء المشتركة . يخلي الطرف الأول مسؤوليته التامة من أي مطالبات مالية خارج هذا السعر الصافي والرسوم المحددة للطرف الثاني.
-              </div>إشهار العقاري لدى المحافظة العقارية، مصاريف الطابع، ومساهمات تسيير الأجزاء المشتركة . يخلي الطرف الأول مسؤوليته التامة من أي مطالبات مالية خارج هذا السعر الصافي والرسوم المحددة للطرف الثاني.
-              </div><h2 class="text-2xl font-bold border-b-2 border-black inline-block px-12">ثمن العقــــــــار المتفق على تشييده</h2>
+            </div>
+
+            <!-- Footer for Page 2 -->
+            <div class="mt-auto pt-4 flex items-center gap-6 w-full bg-white px-6 pb-6 overflow-hidden">
+              <div class="flex-grow">
+                <div class="h-[3px] w-full bg-red-800 mb-2" style="clip-path: polygon(0 0, 100% 0, 98% 100%, 0% 100%); -webkit-clip-path: polygon(0 0, 100% 0, 98% 100%, 0% 100%);"></div>
+                <div class="text-sm font-sans text-slate-500 font-black tracking-widest text-left">Page 2 of 7</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE 3 -->
+        <div class="contract-page rtl font-arabic relative flex flex-col">
+          <div class="py-4 flex-grow col">
+            <div class="text-center mb-8 col">
+              <h2 class="text-2xl font-bold border-b-2 border-black inline-block px-12">ثمن العقــــــــار المتفق على تشييده</h2>
             </div>
             <div class="space-y-6 text-xl leading-relaxed col">
               <p>
@@ -999,7 +1004,7 @@ export default function ContractPrint() {
               </div>
 
               <div class="mt-8 border-2 border-red-800 bg-red-50/5 p-6 rounded-2xl text-justify text-base leading-relaxed text-red-100 font-bold">
-                بند الثمن القطعي والمصاريف: يتفق الطرفان صراحة وبصفة مطلقة على أن السعر الإجمالي المذكور للعقار هو سعر قطعي، نهائي، وثابت، وغير قابل للمراجعة أو التعديل بالزيادة أو النقصان تحت أي ظرف كان، بما في ذلك التغييرات الاقتصادية أو الطارئة. كما يعتبر هذا السعر صافياً يغطي حصراً قيمة العقار؛ وعليه، يتحمل الطرف الثاني وحده، بصفة حصرية ونهائية، كافة التكاليف، والرسوم، والضرائب المتعلقة بإبرام التعاقد ونقل الملكية، والتي تشمل على سبيل المثال لا الحصر: كافة أتعاب التوثيق، حقوق ورسوم التسجيل لدى إدارة الضرائب، رسوم الإشهار العقاري لدى المحافظة العقارية، مصاريف الطابع، ومساهمات تسيير الأجزاء المشتركة . يخلي الطرف الأول مسؤوليته التامة من أي مطالبات مالية خارج هذا السعر الصافي والرسوم المحددة للطرف الثاني.
+                بند الثمن القطعي والمصاريف: يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.
               </div>
             </div>
           </div>
@@ -1029,6 +1034,12 @@ export default function ContractPrint() {
             <p class="text-base md:text-lg leading-relaxed text-justify mb-4">
               - صرح الطرف الأول بأنه يشيد الشقة السالفة الذكر <span class="font-bold underline">${contract.isFinished ? "جاهزة" : "نصف جاهزة"}</span> مع التزامه بكامل الضمانات العادية وكذا احترام التصاميم والمخططات المتفق عليها وأصول الفن المتعارف عليها في هذا المجال، وبالأشغال النهائية تركيب النظام الكهربائي بدون تجهيزات مع كميرا المراقبة + مصعد كهربائي + خزان مائي .
             </p>
+
+            ${!contract.isFinished ? `
+            <p class="leading-relaxed text-justify mb-4 text-base md:text-lg">
+              يتعهد المشتري بإتمام الأشغال الداخلية للشقة بعد استلامها في حالة نصف جاهزة، وفقاً للمعايير والمواصفات الفنية المتعارف عليها.
+            </p>
+            ` : ""}
 
             <p class="leading-relaxed text-justify mb-4 text-base md:text-lg">
               صرح الطرف الثاني بأنه عاين المكان محل التعاقد (الشقة وكذا المشروع) واطلع على التصاميم والمقاطع ومخطط الكتلة (Plan de masse) ومخططات البناية والتجهيزات المتعلقة بها ورضي بها.
@@ -1114,29 +1125,29 @@ export default function ContractPrint() {
 
         <!-- PAGE 7 -->
         <div class="contract-page rtl font-arabic relative flex flex-col">
-          <div class="flex flex-col flex-grow py-10 col">
-            <div class="mb-20">
-               <p class="text-2xl font-bold mb-8">
+          <div class="flex flex-col flex-grow justify-center items-center py-10 col" style="display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 30px; margin-bottom: 50px;">
+            <div class="text-center w-full mb-4">
+               <p class="text-2xl font-bold">
                 حررت ببرج الكيفان بتاريخ: <span class="font-sans border-b-2 border-dotted border-black px-4" style="border-bottom: 2px dotted #000000; padding: 0 15px;">${contract.signingDate}</span>
               </p>
             </div>
 
-            <div class="grid grid-cols-2 gap-20 text-center text-2xl font-bold">
-              <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="grid grid-cols-2 gap-10 text-center text-2xl font-bold w-full" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; max-width: 580px; margin: 0 auto; width: 100%;">
+              <div style="display: flex; flex-direction: column; gap: 15px; margin: 0 auto; width: 100%;">
                 <div style="height: 70px; display: flex; flex-direction: column; justify-content: space-between;">
                   <p>بصمة وإمضاء المشتري</p>
                   <p class="text-xl mt-2 font-bold">${contract.gender}: ${contract.customerName}</p>
                 </div>
-                <div class="h-40 border-2 border-slate-200 border-dashed rounded-2xl flex items-center justify-center text-slate-300 text-sm font-normal" style="height: 160px; border: 2px dashed #cbd5e1; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; font-weight: 400;">
+                <div class="h-40 border-2 border-slate-200 border-dashed rounded-2xl flex items-center justify-center text-slate-300 text-sm font-normal" style="height: 140px; border: 2px dashed #cbd5e1; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; font-weight: 400;">
                   (بصمة المشتري)
                 </div>
               </div>
-              <div style="display: flex; flex-direction: column; gap: 20px;">
+              <div style="display: flex; flex-direction: column; gap: 15px; margin: 0 auto; width: 100%;">
                 <div style="height: 70px; display: flex; flex-direction: column; justify-content: space-between;">
                   <p>عن مؤسسة كنفور للخدمات العقارية</p>
                   <p class="text-xl mt-1">المسير: نجار عبد الغني</p>
                 </div>
-                <div class="h-40 border-2 border-slate-200 border-dashed rounded-2xl flex items-center justify-center text-slate-300 text-sm font-normal" style="height: 160px; border: 2px dashed #cbd5e1; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; font-weight: 400;">
+                <div class="h-40 border-2 border-slate-200 border-dashed rounded-2xl flex items-center justify-center text-slate-300 text-sm font-normal" style="height: 140px; border: 2px dashed #cbd5e1; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; font-weight: 400;">
                   (الإمضاء والختم)
                 </div>
               </div>
@@ -1384,7 +1395,7 @@ export default function ContractPrint() {
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: `L'immeuble abritant l'appartement susnommé fait partie du plan d'urbanisme de la Commune de: ${getMunicipality(contract.project)}, Wilaya d'Alger.` }),
+              new TextRun({ text: `L'immeuble abritant l'appartement susnommé fait partie du plan d'urbanisme de la Commune de: ${getCleanMunicipalityFr()}, ${getWilayaFr()}.` }),
             ],
             ...ltrLeft,
             spacing: { before: 100 },
@@ -1475,7 +1486,7 @@ export default function ContractPrint() {
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Les co-contractants reconnaissent de façon définitive et intangible que le coût net consenti est fixe, forfaitaire, et insusceptible de révision ou d'indexation ultérieure, quelles que soient les fluctuations des coûts économiques et inflationnistes. Celui-ci couvre en exclusivité la propriété privative du logement; l'Acquéreur supportera seul, à titre de frais de mutation et d'actes d'établissement de copropriété: l'ensemble des émoluments notariés prescrits par la loi, les droits d’enregistrement fiscal obligatoires auprès de l'administration publique, les frais légaux d'insinuation et d’inscription foncière, ainsi que ses quote-parts d'entretien des parties communes." }),
+              new TextRun({ text: "Les parties conviennent expressément que le prix de vente global est ferme, définitif et non révisable. Ce prix représente exclusivement la valeur matérielle du bien immobilier. Les deux parties (le Promoteur et l'Acquéreur) supportent à parts égales les honoraires de rédaction de cet acte notarié, ou selon des proportions différentes conformément à l'annexe jointe. En revanche, l'Acquéreur supporte seul les droits d'enregistrement, les frais de publicité foncière auprès de la Conservation Foncière, ainsi que les charges de copropriété. Le Promoteur s'acquitte de l'ensemble des taxes et impôts légaux incombant à sa qualité de professionnel de la promotion immobilière jusqu'à la livraison du projet." }),
             ],
             ...ltrLeft,
             spacing: { before: 100 },
@@ -1797,7 +1808,7 @@ export default function ContractPrint() {
           new Paragraph({
              children: [
                new TextRun({ text: "المرقي العقاري: ", bold: true }),
-               new TextRun({ text: "مؤسسة كنفور للخدمات العقارية، الكائن عنوانها بـ: بن مراد برج الكيفان، الجزائر العاصمة، والمسجلة في السجل التجاري تحت رقم: 122 5143817-16/01" }),
+               new TextRun({ text: "مؤسسة كنفور للخدمات العقارية، الكائن عنوانها بـ: بن مراد برج الكيفان، الجزائر العاصمة، والمسجلة في السجل التجاري تحت رقم: \u202A16/01-122 5143817\u202C" }),
              ],
              ...arRight,
           }),
@@ -1891,7 +1902,7 @@ export default function ContractPrint() {
           new Paragraph({
             children: [
               new TextRun({ text: "الشقة : ", bold: true }),
-              new TextRun({ text: `فئة ${contract.apartmentType}. تقع في ${convertFloorToOrdinal(contract.floor)} في العمارة ${contract.building} في إقامة ${contract.project} بـ ${getMunicipality(contract.project)} تحمل الرمز ${contract.apartmentCode} مساحتها الإجمالية حوالي ${contract.area} متر مربع ${contract.parking?.exists ? ` بالإضافة إلى حصة موقف السيارات رقم ${contract.parking.number} الكائن في القبو` : " دون أن يشمل هذا البيع موقف السيارات الكائن في الطابق السفلي"} بما فيها الحوائط و الفراغات، تحتوي الشقة على : ${contract.roomCount > 1 ? `0${contract.roomCount} غرف` : "غرفة واحدة"}، الحمام، المرحاض، المطبخ .` }),
+              new TextRun({ text: `فئة ${contract.apartmentType}. تقع في ${convertFloorToOrdinal(contract.floor)} في العمارة ${contract.building} في إقامة ${projectDetails?.name || contract.project.split("(")[0].trim()} ببلدية ${getCleanMunicipalityAr()} تحمل الرمز ${contract.apartmentCode} مساحتها الإجمالية حوالي ${getArabicAreaText(contract.area)} ${contract.parking?.exists ? ` بالإضافة إلى حصة موقف السيارات رقم ${contract.parking.number} الكائن في القبو` : " دون أن يشمل هذا البيع موقف السيارات الكائن في الطابق السفلي"} بما فيها الحوائط و الفراغات، تحتوي الشقة على : ${contract.roomCount > 1 ? `0${contract.roomCount} غرف` : "غرفة واحدة"}، الحمام، المرحاض، المطبخ .` }),
             ],
             ...arRight,
           }),
@@ -1903,7 +1914,7 @@ export default function ContractPrint() {
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: `ـــــ تعد الشقة سالفة الذكر جزء من ضمن المحيط العمراني ${getMunicipality(contract.project)}.` }),
+              new TextRun({ text: `ـــــ تعد الشقة سالفة الذكر جزء من ضمن المحيط العمراني الكائن بـ ${getCleanProjectLocationAr()}.` }),
             ],
             ...arRight,
           }),
@@ -2007,7 +2018,7 @@ export default function ContractPrint() {
           new Paragraph({
             children: [
               new TextRun({ 
-                text: "بند الثمن القطعي والمصاريف: يتفق الطرفان صراحة وبصفة مطلقة على أن السعر الإجمالي المذكور للعقار هو سعر قطعي، نهائي، وثابت، وغير قابل للمراجعة أو التعديل بالزيادة أو النقصان تحت أي ظرف كان، بما في ذلك التغييرات الاقتصادية أو الطارئة. كما يعتبر هذا السعر صافياً يغطي حصراً قيمة العقار؛ وعليه، يتحمل المشتري وحده، بصفة حصرية ونهائية، كافة التكاليف، والرسوم، والضرائب المتعلقة بإبرام التعاقد ونقل الملكية، والتي تشمل على سبيل المثال لا الحصر: كافة أتعاب التوثيق، حقوق ورسوم التسجيل لدى إدارة الضرائب، رسوم الإشهار العقاري لدى المحافظة العقارية، مصاريف الطابع، ومساهمات تسيير الأجزاء المشتركة . يخلي المرقي العقاري مسؤوليته التامة من أي مطالبات مالية خارج هذا السعر الصافي والرسوم المحددة للمشتري.",
+                text: "بند الثمن القطعي والمصاريف: يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.",
                 bold: true,
                 size: 20
               })
@@ -2040,6 +2051,15 @@ export default function ContractPrint() {
             ],
             ...arRight,
           }),
+          ...(contract.isFinished ? [] : [
+            new Paragraph({
+              children: [
+                new TextRun({ text: "- بما أن الوحدة العقارية موضوع هذا العقد تُسلّم في حالة نصف جاهزة، يلتزم المشتري التزاماً صريحاً وقاطعاً بإتمام كافة أشغال التهيئة والتشطيبات الداخلية الخاصة بشقته في أجل أقصاه ستة (06) أشهر، تحتسب ابتداءً من تاريخ التوقيع على محضر التسليم النهائي للعقار. ويتحمل المشتري وحده طوال هذه المدة المسؤولية الكاملة عن سلامة الأشغال، ونظافة المحيط، وعدم إلحاق أي ضرر بالهيكل الإنشائي أو بالأجزاء المشتركة للعمارة." })
+              ],
+              ...arRight,
+              spacing: { before: 100 },
+            })
+          ]),
           new Paragraph({
             children: [
               new TextRun({ text: "صرح المشتري بأنه عاين المكان محل التعاقد (الشقة وكذا المشروع) واطلع على التصاميم والمقاطع ومخطط الكتلة (Plan de masse) ومخططات البناية والتجهيزات المتعلقة بها ورضي بها." }),
@@ -2060,7 +2080,7 @@ export default function ContractPrint() {
           // Section 1: الالتزامات العامة
           ...(groupedClauses.general.length > 0 ? [
             new Paragraph({
-              children: [new TextRun({ text: "الالتزامات والالتزامات العامة:", bold: true, size: 28, color: wordColor })],
+              children: [new TextRun({ text: "الالتزامات العامة:", bold: true, size: 28, color: wordColor })],
               ...arRight,
               spacing: { before: 200, after: 100 },
             }),
@@ -2365,6 +2385,7 @@ export default function ContractPrint() {
           {language === "fr" ? (
             <FrenchContractPages
               contract={contract}
+              projectDetails={projectDetails}
               isRoyal={isRoyal}
               themeColors={themeColors}
               totalReceivedReact={totalReceivedReact}
@@ -2436,7 +2457,7 @@ export default function ContractPrint() {
                 <div className="text-right">
                   <div className={isRoyal ? 'text-emerald-900' : ''}>
                     <p className="font-bold mb-1">المرقي العقاري:</p>
-                    <p>مؤسسة كنفور للخدمات العقارية، الكائن عنوانها بـ: بن مراد برج الكيفان، الجزائر العاصمة، والمسجلة في السجل التجاري تحت رقم: 122 5143817-16/01</p>
+                    <p>مؤسسة كنفور للخدمات العقارية، الكائن عنوانها بـ: بن مراد برج الكيفان، الجزائر العاصمة، والمسجلة في السجل التجاري تحت رقم: <span dir="ltr" className="inline-block font-sans font-semibold">16/01-122 5143817</span></p>
                     <p>NIS: 1989 4710 01019 26</p>
                     <p>NIF: 18947100101918641601</p>
                     <p className="font-bold mt-1">يمثلها قانوناً مسيرها السيد: نجار عبد الغني، والمشار إليه في هذا العقد بصفة (المرقي العقاري).</p>
@@ -2503,7 +2524,7 @@ export default function ContractPrint() {
                 - ينص الاتفاق على أن يقوم المرقي العقاري بتشييد شقة سكنية للمشتري وهي:
               </p>
               <p>
-                <span className="font-bold">الشقة :</span> فئة {contract.apartmentType}. تقع في {convertFloorToOrdinal(contract.floor)} في العمارة {contract.building} في إقامة {getFullProjectInfo(contract.project)} تحمل الرمز <span className="font-sans font-bold">{contract.apartmentCode}</span> مساحتها الإجمالية حوالي <span className="font-sans font-bold">{contract.area}</span> متر مربع {contract.parking?.exists ? ` بالإضافة إلى حصة موقف السيارات رقم ${contract.parking.number} الكائن في القبو` : " دون أن يشمل هذا البيع موقف السيارات الكائن في القبو"} بما فيها الحوائط و الفراغات، تحتوي الشقة على : {contract.roomCount > 1 ? `0${contract.roomCount} غرف` : "غرفة واحدة"}، الحمام، المرحاض، المطبخ .
+                <span className="font-bold">الشقة :</span> فئة {contract.apartmentType}. تقع في {convertFloorToOrdinal(contract.floor)} في العمارة {contract.building} في إقامة {projectDetails?.name || contract.project.split("(")[0].trim()} ببلدية {getCleanMunicipalityAr()} تحمل الرمز <span className="font-sans font-bold">{contract.apartmentCode}</span> مساحتها الإجمالية حوالي {formatArabicArea(contract.area)} {contract.parking?.exists ? ` بالإضافة إلى حصة موقف السيارات رقم ${contract.parking.number} الكائن في القبو` : " دون أن يشمل هذا البيع موقف السيارات الكائن في القبو"} بما فيها الحوائط و الفراغات، تحتوي الشقة على : {contract.roomCount > 1 ? `0${contract.roomCount} غرف` : "غرفة واحدة"}، الحمام، المرحاض، المطبخ .
               </p>
             </div>
 
@@ -2513,7 +2534,7 @@ export default function ContractPrint() {
               }`}>تعييـــــــــــــــــن العقار المتفق على تشييده</h2>
             </div>
             <p className="text-base mb-4">
-              ـــــ تعد الشقة سالفة الذكر جزء من ضمن المحيط العمراني {getMunicipality(contract.project)}.
+              ـــــ تعد الشقة سالفة الذكر جزء من ضمن المحيط العمراني الكائن بـ {getCleanProjectLocationAr()}.
             </p>
           </div>
           
@@ -2617,7 +2638,7 @@ export default function ContractPrint() {
                   ? 'border-emerald-800/30 bg-emerald-50/10 text-emerald-950 shadow-xs' 
                   : 'border-red-800 bg-red-50/5 text-red-900'
               }`}>
-                بند الثمن القطعي والمصاريف: يتفق الطرفان صراحة وبصفة مطلقة على أن السعر الإجمالي المذكور للعقار هو سعر قطعي، نهائي، وثابت، وغير قابل للمراجعة أو التعديل بالزيادة أو النقصان تحت أي ظرف كان، بما في ذلك التغييرات الاقتصادية أو الطارئة. كما يعتبر هذا السعر صافياً يغطي حصراً قيمة العقار؛ وعليه، يتحمل المشتري وحده، بصفة حصرية ونهائية، كافة التكاليف، والرسوم، والضرائب المتعلقة بإبرام التعاقد ونقل الملكية، والتي تشمل على سبيل المثال لا الحصر: كافة أتعاب التوثيق، حقوق ورسوم التسجيل لدى إدارة الضرائب، رسوم الإشهار العقاري لدى المحافظة العقارية، مصاريف الطابع، ومساهمات تسيير الأجزاء المشتركة . يخلي المرقي العقاري مسؤوليته التامة من أي مطالبات مالية خارج هذا السعر الصافي والرسوم المحددة للمشتري.
+                بند الثمن القطعي والمصاريف: يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.
               </div>
             </div>
           </div>
@@ -2653,6 +2674,12 @@ export default function ContractPrint() {
               - صرح المرقي العقاري بأنه يشيد الشقة السالفة الذكر <span className="font-bold">{contract.isFinished ? "جاهزة" : "نصف جاهزة"}</span> مع التزامه بكامل الضمانات العادية وكذا احترام التصاميم والمخططات المتفق عليها وأصول الفن المتعارف عليها في هذا المجال، وبالأشغال النهائية تركيب النظام الكهربائي بدون تجهيزات مع كميرا المراقبة + مصعد كهربائي + خزان مائي .
             </p>
 
+            {!contract.isFinished && (
+              <p className="leading-relaxed text-justify mb-4">
+                - بما أن الوحدة العقارية موضوع هذا العقد تُسلّم في حالة نصف جاهزة، يلتزم المشتري التزاماً صريحاً وقاطعاً بإتمام كافة أشغال التهيئة والتشطيبات الداخلية الخاصة بشقته في أجل أقصاه ستة (06) أشهر، تحتسب ابتداءً من تاريخ التوقيع على محضر التسليم النهائي للعقار. ويتحمل المشتري وحده طوال هذه المدة المسؤولية الكاملة عن سلامة الأشغال، ونظافة المحيط، وعدم إلحاق أي ضرر بالهيكل الإنشائي أو بالأجزاء المشتركة للعمارة.
+              </p>
+            )}
+
             <p className="leading-relaxed text-justify mb-4">
               صرح المشتري بأنه عاين المكان محل التعاقد (الشقة وكذا المشروع) واطلع على التصاميم والمقاطع ومخطط الكتلة (Plan de masse) ومخططات البناية والتجهيزات المتعلقة بها ورضي بها.
             </p>
@@ -2678,7 +2705,7 @@ export default function ContractPrint() {
             </div>
 
             <div className="space-y-4">
-              {/* 1. الالتزامات والالتزامات العامة */}
+              {/* 1. الالتزامات العامة */}
               {groupedClauses.general.length > 0 && (
                 <div>
                   <h3 className={`text-xs md:text-sm font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
@@ -2686,7 +2713,7 @@ export default function ContractPrint() {
                       ? 'text-emerald-900 border-r-emerald-800 bg-emerald-50/10' 
                       : 'text-red-800 border-r-red-800 bg-red-50/20'
                   }`}>
-                    الالتزامات والالتزامات العامة
+                    الالتزامات العامة
                   </h3>
                   <ul className="list-none space-y-1.5 pr-2">
                     {groupedClauses.general.map((clause: string, idx: number) => (
@@ -2883,14 +2910,14 @@ export default function ContractPrint() {
           {isRoyal && (
             <div className="absolute inset-4 border-2 border-double border-amber-600/20 pointer-events-none rounded-2xl z-0" />
           )}
-          <div className="flex flex-col flex-grow py-4 justify-between z-10 relative">
-            <div className="mb-4">
+          <div className="flex flex-col flex-grow justify-center items-center py-6 space-y-8 z-10 relative" style={{ marginBottom: "20px" }}>
+            <div className="text-center w-full mb-2">
                <p className="text-lg font-bold">
                 حررت ببرج الكيفان بتاريخ: <span className={`font-sans font-bold px-1 ${isRoyal ? 'text-emerald-950' : ''}`}>{contract.signingDate}</span>
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-12 text-center text-lg font-bold mt-4">
+            <div className="grid grid-cols-2 gap-8 text-center text-lg font-bold w-full max-w-xl mx-auto px-4">
               <div className="space-y-4">
                 <div className="h-14 flex flex-col justify-between">
                   <p className={isRoyal ? 'text-emerald-950' : ''}>بصمة وإمضاء المشتري</p>
