@@ -126,17 +126,7 @@ export default function FrenchContractPages({
             <p className="text-sm text-slate-600">Alger, Algérie</p>
           </div>
 
-          {isRoyal ? (
-            <div className="my-4 flex justify-center z-10 relative">
-              <div className="border border-amber-600/20 p-1 bg-amber-500/5 rounded-full">
-                <div className="w-14 h-14 border border-dashed border-amber-600/30 rounded-full flex items-center justify-center">
-                  <span className="font-serif text-lg font-bold tracking-wider text-amber-700">CI</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="my-8" />
-          )}
+          <div className="my-8" />
 
           <div className="my-6 text-center">
             <h1 className={`text-2xl md:text-3xl font-bold py-6 px-10 leading-relaxed text-center ${
@@ -165,7 +155,7 @@ export default function FrenchContractPages({
             )}
             <h2 className={`text-2xl mb-4 ${isRoyal ? 'text-emerald-950 font-bold' : 'text-slate-800 font-bold'}`}>Entre la société Confort Services Immobiliers</h2>
             {isRoyal && <div className="h-0.5 w-20 bg-amber-600/20 mx-auto mb-4" />}
-            <h2 className={`text-3xl font-bold ${isRoyal ? 'text-emerald-900' : 'text-slate-900'}`}>Et {genderWord} {actualCustomerName}</h2>
+            <h2 className={`text-3xl font-bold ${isRoyal ? 'text-emerald-900' : 'text-slate-900'}`}>Et {genderWord}: {actualCustomerName}</h2>
           </div>
 
           <div className="w-full mt-auto pt-6 text-xs text-left">
@@ -350,8 +340,7 @@ export default function FrenchContractPages({
                 ? 'border-emerald-800/30 bg-emerald-50/10 text-emerald-950 shadow-xs' 
                 : 'border-red-800 bg-red-50/5 text-red-900 border-dashed'
             }`}>
-              <span className="font-bold uppercase block mb-1">Clause de prix ferme, définitif et non révisable :</span>
-              Les parties conviennent expressément que le prix de vente global est ferme, définitif et non révisable. Ce prix représente exclusivement la valeur matérielle du bien immobilier. Les deux parties (le Promoteur et l'Acquéreur) supportent à parts égales les honoraires de rédaction de cet acte notarié, ou selon des proportions différentes conformément à l'annexe jointe. En revanche, l'Acquéreur supporte seul les droits d'enregistrement, les frais de publicité foncière auprès de la Conservation Foncière, ainsi que les charges de copropriété. Le Promoteur s'acquitte de l'ensemble des taxes et impôts légaux incombant à sa qualité de professionnel de la promotion immobilière jusqu'à la livraison du projet.
+              Les parties conviennent expressément que le prix de vente global est ferme, définitif et non révisable. Ce prix représente exclusivement la valeur matérielle du bien immobilier ; les honoraires de notaire inhérents à la rédaction du présent acte sont supportés par les deux parties (le Promoteur et l’Acquéreur) à parts égales ou selon des proportions variables telles que définies dans l'annexe jointe. En revanche, l’Acquéreur supporte à titre exclusif les droits d’enregistrement et les frais de publicité foncière auprès de la Conservation Foncière, ainsi que les charges de gestion des parties communes. De son côté, le Promoteur immobilier prend en charge l’intégralité des impôts et taxes légales incombant à sa qualité de professionnel de la promotion immobilière jusqu’à la livraison du projet.
             </div>
           </div>
         </div>
@@ -386,6 +375,12 @@ export default function FrenchContractPages({
             ـ Le Promoteur déclare et certifie sous sa responsabilité civile et commerciale que le logement convenu sera édifié et livré <span className="font-bold text-slate-950">{contract.isFinished ? "entièrement fini (clés en mains)" : "semi-fini"}</span>, conformément aux prescriptions réglementaires, techniques et de sécurité, tout en octroyant à l’Acquéreur les garanties légales usuelles d'ordre décennale et biennale. L’exécution se fera dans la pure conformité des plans approved et de l'art architectural en la matière. Les équipements de base intègrent également l'installation initiale du réseau électrique intérieur sain (sans appareillages/lustres), système de télésurveillance par caméra au hall, ascenseur fonctionnel avec bâche d'eau collective dédiée.
           </p>
 
+          {!contract.isFinished && (
+            <p className="leading-relaxed mb-4 bg-slate-50/50 p-2.5 rounded border border-slate-200/50">
+              ـ <span className="font-bold text-slate-900">Engagement d’achèvement des travaux (Aménagement) :</span> Étant donné que l’unité immobilière est livrée à l’état semi-fini, l'Acquéreur s'engage de manière expresse, ferme et définitive à réaliser et achever l'intégralité des travaux d'aménagement et de finitions intérieures de son logement dans un délai maximal de six (06) mois, à compter de la date de signature du procès-verbal de livraison final. L’Acquéreur assumera de manière exclusive l'entière responsabilité quant à la sécurité du chantier, la propreté des lieux et l'absence totale de dégradation de la structure porteuse ou des parties communes de la copropriété.
+            </p>
+          )}
+
           <p className="leading-relaxed mb-4">
             ـ L'Acquéreur déclare sous son entière responsabilité civile avoir visité avec attention le site d'emplacement matériel d’édification (l'appartement et l'immeuble d'assiette). Il atteste avoir personnellement vérifié et accepté les plans d'architecture de l'appartement, le plan d'aménagement intérieur, le plan de masse global (Plan de masse) et déclare y consentir sans aucune réserve de fait ou de droit.
           </p>
@@ -418,7 +413,7 @@ export default function FrenchContractPages({
                     ? 'text-emerald-900 border-l-emerald-800 bg-emerald-50/10' 
                     : 'text-red-800 border-l-red-800 bg-red-50/10'
                 }`}>
-                  Covenants et engagements du Promoteur 
+                  Engagements généraux
                 </h3>
                 <ul className="list-none space-y-1.5 pl-2 text-justify">
                   {groupedClauses.general.map((clause: string, idx: number) => (
@@ -439,7 +434,7 @@ export default function FrenchContractPages({
                     ? 'text-emerald-900 border-l-emerald-800 bg-emerald-50/10' 
                     : 'text-red-800 border-l-red-800 bg-red-50/10'
                 }`}>
-                  Clauses résolutoires et désistement
+                  Conditions de résiliation et de désistement
                 </h3>
                 <ul className="list-none space-y-1.5 pl-2 text-justify">
                   {groupedClauses.termination.map((clause: string, idx: number) => (
@@ -460,7 +455,7 @@ export default function FrenchContractPages({
                     ? 'text-emerald-900 border-l-emerald-800 bg-emerald-50/10' 
                     : 'text-red-800 border-l-red-800 bg-red-50/10'
                 }`}>
-                  Arrêt ou suspension définitive du projet
+                  Arrêt de projet ou faillite
                 </h3>
                 <ul className="list-none space-y-1.5 pl-2 text-justify">
                   {groupedClauses.halting.map((clause: string, idx: number) => (
@@ -502,7 +497,7 @@ export default function FrenchContractPages({
                     ? 'text-emerald-900 border-l-emerald-800 bg-emerald-50/10' 
                     : 'text-red-800 border-l-red-800 bg-red-50/10'
                 }`}>
-                  Transmission successorale et décès
+                  Cession et transmission en cas de décès
                 </h3>
                 <ul className="list-none space-y-1.5 pl-2 text-justify font-normal">
                   {groupedClauses.assignment.map((clause: string, idx: number) => (
@@ -523,7 +518,7 @@ export default function FrenchContractPages({
                     ? 'text-emerald-900 border-l-emerald-800 bg-emerald-50/10' 
                     : 'text-red-800 border-l-red-800 bg-red-50/10'
                 }`}>
-                  Situation juridique globale du foncier
+                  Situation juridique du projet
                 </h3>
                 <ul className="list-none space-y-1.5 pl-2 text-justify font-normal">
                   {groupedClauses.legalStatus.map((clause: string, idx: number) => (
@@ -544,7 +539,7 @@ export default function FrenchContractPages({
                     ? 'text-emerald-900 border-l-emerald-800 bg-emerald-50/10' 
                     : 'text-red-800 border-l-red-800 bg-red-50/10'
                 }`}>
-                  Régime fiscal des charges et taxes
+                  Taxes et frais d'urbanisme
                 </h3>
                 <ul className="list-none space-y-1.5 pl-2 text-justify font-normal">
                   {groupedClauses.taxes.map((clause: string, idx: number) => (
@@ -565,7 +560,7 @@ export default function FrenchContractPages({
                     ? 'text-emerald-900 border-l-emerald-800 bg-emerald-50/10' 
                     : 'text-red-800 border-l-red-800 bg-red-50/10'
                 }`}>
-                  Arbitrage, litige et droit d'avenant
+                  Règlement des différends et modifications
                 </h3>
                 <ul className="list-none space-y-1.5 pl-2 text-justify font-normal">
                   {groupedClauses.disputes.map((clause: string, idx: number) => (

@@ -39,24 +39,31 @@ export function categorizeClausesFr(clausesList: string[]): GroupedClauses {
     const text = clause.trim();
     if (!text) return;
 
-    if (text.includes("Tribunal") || text.includes("régis") || text.includes("litige") || text.includes("avenant") || text.includes("modification")) {
-      groups.disputes.push(text);
+    // 1. Termination and Withdrawal (checked early so clauses addressing default of payment are not classified as taxes due to "frais")
+    if (text.includes("résiliation") || text.includes("défaut de paiement") || text.includes("résoudre") || text.includes("pénalité administrative") || text.includes("désistement")) {
+      groups.termination.push(text);
     }
-    else if (text.includes("arrêt") || text.includes("impossibilité") || text.includes("faillite") || text.includes("interrompu")) {
+    // 2. Halting or Bankruptcy
+    else if (text.includes("arrêt") || text.includes("impossibilité de poursuivre") || text.includes("faillite") || text.includes("interrompu") || text.includes("suspendre") || text.includes("restituer à l’Acquéreur")) {
       groups.halting.push(text);
     }
-    else if (text.includes("décès") || text.includes("héritiers") || text.includes("succession")) {
+    // 3. Assignment and death (checked before taxes to avoid assignment matching "droits")
+    else if (text.includes("décès") || text.includes("héritiers") || text.includes("succession") || text.includes("s'abstenir de toute disposition") || text.includes("cession") || text.includes("transmis")) {
       groups.assignment.push(text);
     }
-    else if (text.includes("assiette foncière") || text.includes("partenariat") || text.includes("permis de construire") || text.includes("statut juridique") || text.includes("foncier")) {
+    // 4. Legal status
+    else if (text.includes("assiette foncière") || text.includes("partenariat") || text.includes("permis de construire") || text.includes("statut juridique") || text.includes("foncier") || text.includes("document d'avenant") || text.includes("promesse de vente")) {
       groups.legalStatus.push(text);
     }
+    // 5. Taxes and fees
     else if (text.includes("charges") || text.includes("frais") || text.includes("taxes") || text.includes("droits") || text.includes("supportera seul") || text.includes("copropriété")) {
       groups.taxes.push(text);
     }
-    else if (text.includes("résiliation") || text.includes("défaut") || text.includes("retenue") || text.includes("résoudre")) {
-      groups.termination.push(text);
+    // 6. Dispute resolution and amendments
+    else if (text.includes("Tribunal") || text.includes("régis") || text.includes("litige") || text.includes("avenant") || text.includes("modification") || text.includes("législation") || text.includes("différend") || text.includes("additif") || text.includes("révision")) {
+      groups.disputes.push(text);
     }
+    // 7. Default
     else {
       groups.general.push(text);
     }
@@ -135,24 +142,17 @@ export default function ContractPrint() {
   const [language, setLanguage] = useState<"ar" | "fr">("ar");
 
   const getPartnershipClauseTextFr = () => {
-    const landOwnerName = contract?.landOwnerName || projectDetails?.landOwnerName;
+    const landOwnerName = contract?.landOwnerName?.trim() || projectDetails?.landOwnerName?.trim() || "Challabi Mohamed";
     const landOwnerGender = contract?.landOwnerGender || projectDetails?.landOwnerGender || "السيد";
-    const partnershipNotaryName = contract?.partnershipNotaryName || projectDetails?.partnershipNotaryName;
-    const partnershipNotaryGender = contract?.partnershipNotaryGender || projectDetails?.partnershipNotaryGender || "موثق";
-    const partnershipDate = contract?.partnershipDate || projectDetails?.partnershipDate;
-    const partnershipContractNumber = contract?.partnershipContractNumber || projectDetails?.partnershipContractNumber;
+    const partnershipNotaryName = contract?.partnershipNotaryName?.trim() || projectDetails?.partnershipNotaryName?.trim() || "Benmerad Abdelkader";
+    const partnershipNotaryGender = contract?.partnershipNotaryGender || projectDetails?.partnershipNotaryGender || "الأستاذ الموثق";
+    const partnershipDate = contract?.partnershipDate || projectDetails?.partnershipDate || "12/05/2026";
+    const partnershipContractNumber = contract?.partnershipContractNumber || projectDetails?.partnershipContractNumber || "123/12";
 
     const prefixOwner = landOwnerGender === "السيد" || landOwnerGender === "Monsieur" ? "M." : "Mme";
+    const prefixNotary = partnershipNotaryGender.includes("موثق") || partnershipNotaryGender.includes("Notaire") ? "Maître" : "M.";
 
-    if (landOwnerName) {
-      let partnerDetails = `conclu en la forme authentique par-devant Maître ${partnershipNotaryName || "[Notaire]"}`;
-      if (partnershipDate) partnerDetails += ` en date du ${partnershipDate}`;
-      if (partnershipContractNumber) partnerDetails += `, enregistré sous le numéro ${partnershipContractNumber}`;
-      partnerDetails += `, avec le propriétaire d'origine du terrain, ${prefixOwner} ${landOwnerName}`;
-
-      return `Le Promoteur Immobilier déclare de manière solennelle et contractuelle que l'assiette foncière objet de la construction relève d'un au titre d'un contrat de partenariat ${partnerDetails}. Le Promoteur s’engage à notifier sans délai l'Acquéreur de toute modification affectant le permis de construire ou le statut juridique et financier du projet.`;
-    }
-    return "Le Promoteur Immobilier déclare de manière solennelle et contractuelle que l'assiette foncière objet de la construction relève d'un contrat de partenariat notarié et publié conclu avec le propriétaire d'origine du terrain. Le Promoteur s’engage à notifier sans délai l'Acquéreur de toute modification affectant le permis de construire ou le statut juridique et financier du projet.";
+    return `Le Promoteur Immobilier déclare de manière solennelle, catégorique et contraignante, que le terrain d'assiette abritant le projet immobilier objet de la construction n’est pas sa propriété exclusive, mais s'inscrit dans le cadre d’un contrat de partenariat et de promotion immobilière rédigé en la forme authentique par-devant ${prefixNotary} ${partnershipNotaryName} en date du ${partnershipDate}, dûment notarié sous le numéro ${partnershipContractNumber} avec le propriétaire d'origine du terrain, ${prefixOwner} ${landOwnerName} (lequel est un contrat non publié à la Conservation Foncière). Le Promoteur reconnaît détenir toutes les prérogatives prévues par la loi et le droit de disposition et de vente sur plan (VEFA) au profit des tiers en vertu de ce contrat, et s’engage également à informer et notifier l’Acquéreur immédiatement de tout amendement ou incident pouvant affecter le permis de construire, ou la situation juridique, foncière, ou de financement du projet.`;
   };
 
   const getFrenchClausesList = (): string[] => {
@@ -167,7 +167,7 @@ export default function ContractPrint() {
       "Le présent document d'avenant constitue un accord à caractère technique et financier contractuel accessoire, faisant partie intégrante de la convention initiale de réservation et de l'acte notarié de promesse de vente, et ne saurait en aucun cas être interprété ou appliqué de façon autonome.",
       "En cas de décès de l’Acquéreur, l'ensemble des obligations financières et les droits réels afférents au présent contrat sont transmis automatiquement et sans interruption au profit direct de ses héritiers légaux, sur production d'une dévolution successorale (Frédha) authentique et dûment notariée.",
       getPartnershipClauseTextFr(),
-      "L’Acquéreur s’engage formellement et irrévocablement à s'abstenir de toute disposition juridique ou matérielle sur le bien (vente, constitution d’hypothèque, bail commercial, bail civil ou cession de droits réels) antes/avant d'avoir honoré l’intégralité de la valeur financière convenue et d’avoir signé d’un commun accord le procès-verbal de livraison régulier rédigé de façon bilatérale.",
+      "L’Acquéreur s’engage formellement et irrévocablement à s'abstenir de toute disposition juridique ou matérielle sur le bien (vente, constitution d’hypothèque, bail commercial, bail civil ou cession de droits réels) avant d'avoir honoré l’intégralité de la valeur financière convenue et d’avoir signé d’un commun accord le procès-verbal de livraison régulier rédigé de façon bilatérale.",
       "Le Promoteur Immobilier assume de manière exclusive la charge d’administration, le syndic de copropriété provisoire et l'entretien ainsi que le gardiennage des parties communes de l’immeuble pendant une durée de douze (12) mois consécutifs à compter du procès-verbal de réception livraison finale. L'Acquéreur s’oblige à s'acquitter d'avance de sa participation proportionnelle aux charges de copropriété (ascenseur, éclairage des couloirs et halls, alimentation d'eau collective, hygiène des espaces communs); ces frais n'étant nullement inclus dans le prix d'achat initial de la partie privative.",
       "Aucune modification, révision unilatérale ou additif ne pourra être apporté aux stipulations du présent document sans l’établissement officiel d'un avenant écrit signé et revêtu de l’empreinte digitale des deux parties en la forme de l'écrit authentique.",
       "Le présent contrat est régi dans toutes ses dispositions par la législation algérienne en vigueur, particulièrement la loi n° 11-04 régissant l'activité de promotion immobilière. À défaut d'accord amiable intervenu sous trente (30) jours entre le Promoteur et l'Acquéreur, tout litige d’interprétation ou de résolution sera déféré devant la juridiction matériellement et territorialement compétente du Tribunal de Dar El Beïda d'Alger."
@@ -1004,7 +1004,7 @@ export default function ContractPrint() {
               </div>
 
               <div class="mt-8 border-2 border-red-800 bg-red-50/5 p-6 rounded-2xl text-justify text-base leading-relaxed text-red-100 font-bold">
-                بند الثمن القطعي والمصاريف: يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.
+               يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.
               </div>
             </div>
           </div>
@@ -1477,16 +1477,9 @@ export default function ContractPrint() {
             spacing: { before: 100 },
           }),
 
-          new Paragraph({ text: "", spacing: { before: 300 } }),
           new Paragraph({
             children: [
-              new TextRun({ text: "CLAUSE DE FERMETÉ ET RESPONSABILITÉ DES CHARGES FISCAUX D’URBANISME :", bold: true }),
-            ],
-            ...ltrLeft,
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: "Les parties conviennent expressément que le prix de vente global est ferme, définitif et non révisable. Ce prix représente exclusivement la valeur matérielle du bien immobilier. Les deux parties (le Promoteur et l'Acquéreur) supportent à parts égales les honoraires de rédaction de cet acte notarié, ou selon des proportions différentes conformément à l'annexe jointe. En revanche, l'Acquéreur supporte seul les droits d'enregistrement, les frais de publicité foncière auprès de la Conservation Foncière, ainsi que les charges de copropriété. Le Promoteur s'acquitte de l'ensemble des taxes et impôts légaux incombant à sa qualité de professionnel de la promotion immobilière jusqu'à la livraison du projet." }),
+              new TextRun({ text: "Les parties conviennent expressément que le prix de vente global est ferme, définitif et non révisable. Ce prix représente exclusivement la valeur matérielle du bien immobilier ; les honoraires de notaire inhérents à la rédaction du présent acte sont supportés par les deux parties (le Promoteur et l’Acquéreur) à parts égales ou selon des proportions variables telles que définies dans l'annexe jointe. En revanche, l’Acquéreur supporte à titre exclusif les droits d’enregistrement et les frais de publicité foncière auprès de la Conservation Foncière, ainsi que les charges de gestion des parties communes. De son côté, le Promoteur immobilier prend en charge l’intégralité des impôts et taxes légales incombant à sa qualité de professionnel de la promotion immobilière jusqu’à la livraison du projet." }),
             ],
             ...ltrLeft,
             spacing: { before: 100 },
@@ -1515,6 +1508,16 @@ export default function ContractPrint() {
             ...ltrLeft,
             spacing: { before: 150 },
           }),
+          ...(contract.isFinished ? [] : [
+            new Paragraph({
+              children: [
+                new TextRun({ text: "ـ Engagement d'achèvement des travaux (Aménagement): ", bold: true }),
+                new TextRun({ text: "Étant donné que l’unité immobilière objet du présent contrat est livrée à l'état semi-fini, l’Acquéreur s’engage de manière expresse, ferme et définitive à réaliser et achever l'intégralité des travaux d'aménagement et de finitions intérieures de son appartement dans un délai maximal de six (06) mois, à compter de la date de signature du procès-verbal de livraison final du bien. L’Acquéreur assumera de manière exclusive, tout au long de cette période, l'entière responsabilité quant à la sécurité du chantier, la propreté des lieux et l'absence totale de dégradation de la structure porteuse ou des parties communes de la copropriété." })
+              ],
+              ...ltrLeft,
+              spacing: { before: 150 },
+            })
+          ]),
           new Paragraph({
             children: [
               new TextRun({ text: "ـ Attestation d'examen par l'Acquéreur: ", bold: true }),
@@ -1532,7 +1535,7 @@ export default function ContractPrint() {
             ...ltrLeft,
           }),
           new Paragraph({
-            children: [new TextRun({ text: "I. COVENANTS ET ENGAGEMENTS DU PROMOTEUR :", bold: true, size: 24, color: wordColor })],
+            children: [new TextRun({ text: "I. ENGAGEMENTS GÉNÉRAUX :", bold: true, size: 24, color: wordColor })],
             ...ltrLeft,
             spacing: { before: 200 },
           }),
@@ -1546,7 +1549,7 @@ export default function ContractPrint() {
           })),
 
           new Paragraph({
-            children: [new TextRun({ text: "II. CLAUSES RÉSOLUTOIRES ET DÉFAUTS DE PAIEMENT :", bold: true, size: 24, color: wordColor })],
+            children: [new TextRun({ text: "II. CONDITIONS DE RÉSILIATION ET DE DÉSISTEMENT :", bold: true, size: 24, color: wordColor })],
             ...ltrLeft,
             spacing: { before: 200 },
           }),
@@ -1560,7 +1563,7 @@ export default function ContractPrint() {
           })),
 
           new Paragraph({
-            children: [new TextRun({ text: "III. ARRÊT DU PROJET DE CONSTRUCTION :", bold: true, size: 24, color: wordColor })],
+            children: [new TextRun({ text: "III. ARRÊT DE PROJET OU FAILLITE :", bold: true, size: 24, color: wordColor })],
             ...ltrLeft,
             spacing: { before: 200 },
           }),
@@ -1581,7 +1584,7 @@ export default function ContractPrint() {
             ...ltrLeft,
           }),
           new Paragraph({
-            children: [new TextRun({ text: "IV. TRANSMISSION SUCCESSORALE EN CAS DE DÉCÈS :", bold: true, size: 24, color: wordColor })],
+            children: [new TextRun({ text: "IV. CESSION ET TRANSMISSION EN CAS DE DÉCÈS :", bold: true, size: 24, color: wordColor })],
             ...ltrLeft,
             spacing: { before: 150 },
           }),
@@ -1595,7 +1598,7 @@ export default function ContractPrint() {
           })),
 
           new Paragraph({
-            children: [new TextRun({ text: "V. STRUCTURE JURIDIQUE ET PARTENARIAT DU FONCIER :", bold: true, size: 24, color: wordColor })],
+            children: [new TextRun({ text: "V. SITUATION JURIDIQUE DU PROJET :", bold: true, size: 24, color: wordColor })],
             ...ltrLeft,
             spacing: { before: 150 },
           }),
@@ -1609,7 +1612,7 @@ export default function ContractPrint() {
           })),
 
           new Paragraph({
-            children: [new TextRun({ text: "VI. FISCALITÉ ET FRAIS GÉNÉRAUX DE COPROPRIÉTÉ :", bold: true, size: 24, color: wordColor })],
+            children: [new TextRun({ text: "VI. TAXES ET FRAIS D'URBANISME :", bold: true, size: 24, color: wordColor })],
             ...ltrLeft,
             spacing: { before: 150 },
           }),
@@ -1623,7 +1626,7 @@ export default function ContractPrint() {
           })),
 
           new Paragraph({
-            children: [new TextRun({ text: "VII. RESOLUTION DES DIFFERENDS ET LOI EN VIGUEUR :", bold: true, size: 24, color: wordColor })],
+            children: [new TextRun({ text: "VII. RÈGLEMENT DES DIFFÉRENDS ET MODIFICATIONS :", bold: true, size: 24, color: wordColor })],
             ...ltrLeft,
             spacing: { before: 150 },
           }),
@@ -2018,7 +2021,7 @@ export default function ContractPrint() {
           new Paragraph({
             children: [
               new TextRun({ 
-                text: "بند الثمن القطعي والمصاريف: يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.",
+                text:"يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.",
                 bold: true,
                 size: 20
               })
@@ -2411,17 +2414,7 @@ export default function ContractPrint() {
                 <p className="text-base text-slate-600">الجزائر العاصمة</p>
               </div>
 
-              {isRoyal ? (
-                <div className="my-4 flex justify-center z-10 relative">
-                  <div className="border border-amber-600/20 p-1 bg-amber-500/5 rounded-full">
-                    <div className="w-14 h-14 border border-dashed border-amber-600/30 rounded-full flex items-center justify-center">
-                      <span className="font-serif text-lg font-bold tracking-wider text-amber-700">CI</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="my-8" />
-              )}
+              <div className="my-8" />
 
               <div className="my-6">
                 <h1 className={`text-2xl md:text-3xl font-bold py-6 px-10 leading-relaxed text-center ${
@@ -2638,7 +2631,7 @@ export default function ContractPrint() {
                   ? 'border-emerald-800/30 bg-emerald-50/10 text-emerald-950 shadow-xs' 
                   : 'border-red-800 bg-red-50/5 text-red-900'
               }`}>
-                بند الثمن القطعي والمصاريف: يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.
+               يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.
               </div>
             </div>
           </div>
