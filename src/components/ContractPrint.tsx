@@ -13,6 +13,7 @@ import { convertToFrenchWords, convertFloorToFrenchOrdinal } from "../lib/number
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import FrenchContractPages from "./FrenchContractPages";
+import { generateReference } from "../lib/referenceGenerator";
 
 export interface GroupedClauses {
   general: string[];
@@ -137,9 +138,21 @@ export default function ContractPrint() {
   const [loading, setLoading] = useState(true);
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<"burgundy" | "royal">("burgundy");
+  const [selectedTemplate, setSelectedTemplate] = useState<"burgundy" | "royal" | "v3">("v3");
   const isRoyal = selectedTemplate === "royal";
   const [language, setLanguage] = useState<"ar" | "fr">("ar");
+
+  const [projectCodeInput, setProjectCodeInput] = useState("CNF");
+  const [clientNumInput, setClientNumInput] = useState("101");
+
+  const refData = contract ? generateReference(
+    projectCodeInput,
+    clientNumInput,
+    {
+      price: contract.totalPrice || 0,
+      clientId: contract.idNumber || ""
+    }
+  ) : { projectCode: "CNF", manualClientNum: "000", dateCode: "0000", hash: "0000", combined: "CNF00000000000" };
 
   const getPartnershipClauseTextFr = () => {
     const landOwnerName = contract?.landOwnerName?.trim() || projectDetails?.landOwnerName?.trim() || "Challabi Mohamed";
@@ -353,6 +366,44 @@ export default function ContractPrint() {
       fetchData();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (contract) {
+      let guessedCode = "CNF";
+      const prName = contract.project || "";
+      if (prName) {
+        if (prName.includes("برج") || prName.includes("الكيفان") || prName.includes("Bordj")) {
+          guessedCode = "BJK";
+        } else if (prName.includes("حوش") || prName.includes("منصوري") || prName.includes("Mansouri")) {
+          guessedCode = "HMN";
+        } else if (prName.includes("بومرداس") || prName.includes("Boumerdes")) {
+          guessedCode = "BOM";
+        } else {
+          const cleanEng = prName.replace(/[^A-Za-z]/g, "");
+          if (cleanEng.length >= 3) {
+            guessedCode = cleanEng.substring(0, 3).toUpperCase();
+          } else {
+            guessedCode = "CNF";
+          }
+        }
+      }
+      setProjectCodeInput(guessedCode);
+
+      let guessedClientNum = "101";
+      if (contract.phoneNumber) {
+        const cleanPhone = contract.phoneNumber.replace(/[^0-9]/g, "");
+        if (cleanPhone.length >= 3) {
+          guessedClientNum = cleanPhone.substring(cleanPhone.length - 3);
+        }
+      } else if (contract.idNumber) {
+        const cleanId = contract.idNumber.replace(/[^0-9]/g, "");
+        if (cleanId.length >= 3) {
+          guessedClientNum = cleanId.substring(cleanId.length - 3);
+        }
+      }
+      setClientNumInput(guessedClientNum);
+    }
+  }, [contract]);
 
   const defaultClauses = [
     "يلتزم المرقي العقاري بتشييد الشقة بنفس المواصفات المذكورة سابقا، والالتزام بإنهاء الأشغال في الآجال المحددة لها، وفي حالة التأخير لسبب قاهر يتوجب على المرقي العقاري إعلام المشتري مسبقا بآجال وأسباب التمديد.",
@@ -585,6 +636,26 @@ export default function ContractPrint() {
           .contract-page, .contract-page * {
             line-height: 1.15 !important;
             color: #000000 !important;
+          }
+          .contract-page .ref-segment-proj {
+            color: ${isRoyal ? '#065f46' : '#1e293b'} !important;
+            font-weight: 900 !important;
+            letter-spacing: 0.05em !important;
+          }
+          .contract-page .ref-segment-client {
+            color: #d97706 !important;
+            font-weight: 500 !important;
+            letter-spacing: 0.05em !important;
+          }
+          .contract-page .ref-segment-date {
+            color: #64748b !important;
+            font-weight: 200 !important;
+            letter-spacing: 0.05em !important;
+          }
+          .contract-page .ref-segment-hash {
+            color: #1d4ed8 !important;
+            font-weight: 900 !important;
+            letter-spacing: 0.05em !important;
           }
           .contract-footer {
             position: absolute !important;
@@ -1792,6 +1863,16 @@ export default function ContractPrint() {
             ],
             ...arCenter,
           }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: refData.projectCode, bold: true, size: 20, color: isRoyal ? "065f46" : "991b1b" }),
+              new TextRun({ text: refData.manualClientNum, bold: true, size: 20, color: "d97706" }),
+              new TextRun({ text: refData.dateCode, size: 20, color: "4b5563" }),
+              new TextRun({ text: refData.hash, bold: true, size: 20, color: "2563eb" }),
+            ],
+            ...arCenter,
+            spacing: { before: 80 }
+          }),
 
           new Paragraph({ text: "", spacing: { before: 2000 } }),
           new Paragraph({
@@ -2275,8 +2356,8 @@ export default function ContractPrint() {
   }
 
   const themeColors = {
-    borderRAccent: isRoyal ? 'border-emerald-800' : 'border-red-800',
-    bullet: isRoyal ? 'text-amber-700' : 'text-red-800',
+    borderRAccent: selectedTemplate === "v3" ? 'border-slate-800' : isRoyal ? 'border-emerald-800' : 'border-red-800',
+    bullet: selectedTemplate === "v3" ? 'text-slate-800' : isRoyal ? 'text-amber-700' : 'text-red-800',
   };
 
   const totalReceivedReact = contract.reservation?.exists ? (contract.reservation.amount + contract.downPayment) : contract.downPayment;
@@ -2325,6 +2406,16 @@ export default function ContractPrint() {
 
         {/* Template Selector */}
         <div className="flex bg-brand-card border border-white/5 p-1 rounded-2xl shadow-xl w-full sm:w-auto overflow-hidden">
+          <button
+            onClick={() => setSelectedTemplate("v3")}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+              selectedTemplate === "v3"
+                ? "bg-amber-500 text-slate-950 shadow-md"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            القالب العصري النخبوِي (V3)
+          </button>
           <button
             onClick={() => setSelectedTemplate("burgundy")}
             className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
@@ -2383,6 +2474,84 @@ export default function ContractPrint() {
         </div>
       </div>
 
+      {/* Interactive Contract Reference Controller Section */}
+      <div className="max-w-7xl mx-auto px-4 mb-4 no-print w-full" dir="rtl">
+        <div className="bg-brand-card/50 border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-1.5 h-full bg-brand-accent rounded-r-2xl"></div>
+          
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div>
+              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2 mb-1 font-arabic">
+                <span className="w-2.5 h-2.5 bg-brand-accent rounded-full animate-pulse"></span>
+                مولد مرجع العقود الآمن (Contract Reference Generator)
+              </h2>
+              <p className="text-slate-400 text-xs md:text-sm font-arabic">
+                تحكم في خصائص وتفاصيل مرجع العقد بشكل مرن وديناميكي. يتم توليد رمز تشفير SHA-256 الفريد بطول 4 رموز بناءً على السعر وهوية الزبون لضمان أمان المعاملة.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-6 w-full lg:w-auto">
+              {/* Project Code Input */}
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">رمز المشروع (3 أحرف):</label>
+                <input
+                  type="text"
+                  maxLength={3}
+                  value={projectCodeInput}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, "");
+                    setProjectCodeInput(val);
+                  }}
+                  className="w-full bg-brand-input border border-white/15 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 transition-all font-semibold uppercase font-mono tracking-widest text-center"
+                  placeholder="مثال: CNF"
+                />
+              </div>
+
+              {/* Manual Client Num Input */}
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">رقم الزبون اليدوي:</label>
+                <input
+                  type="text"
+                  value={clientNumInput}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase().replace(/\s+/g, "");
+                    setClientNumInput(val);
+                  }}
+                  className="w-full bg-brand-input border border-white/15 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 transition-all font-semibold uppercase font-mono tracking-widest text-center"
+                  placeholder="مثال: 102"
+                />
+              </div>
+
+              {/* Combined live preview inside config panel */}
+              <div className="w-full sm:w-auto bg-brand-input/30 border border-white/5 rounded-xl px-4 py-3 text-center sm:text-right">
+                <span className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider font-sans">المرجع الأصلي المدمج بالكامل:</span>
+                <span className="font-mono text-base font-bold bg-brand-input border border-white/15 px-3 py-1 rounded-lg text-brand-accent select-all">
+                  {refData.combined}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-white/5 flex flex-wrap items-center gap-2 md:gap-6 text-xs text-slate-400">
+            <div className="font-arabic">
+              <span className="font-bold text-slate-300 ml-1">بنية المرجع الملون:</span>
+              <span className="font-mono bg-brand-input px-2 py-0.5 rounded text-indigo-300 font-bold ml-1">[{refData.projectCode}]</span>
+              <span className="font-mono bg-brand-input px-2 py-0.5 rounded text-amber-300 font-bold ml-1">[{refData.manualClientNum}]</span>
+              <span className="font-mono bg-brand-input px-2 py-0.5 rounded text-slate-300 font-bold ml-1">[{refData.dateCode}]</span>
+              <span className="font-mono bg-brand-input px-2 py-0.5 rounded text-blue-300 font-bold">[{refData.hash}]</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 font-arabic">
+              <span className="font-semibold text-slate-300">السعر المستخدم في التشفير:</span>
+              <span className="font-mono text-brand-accent font-semibold">{contract?.totalPrice?.toLocaleString() || 0} دج</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 font-arabic">
+              <span className="font-semibold text-slate-300">هوية الزبون:</span>
+              <span className="font-mono text-slate-200">{contract?.idNumber || "غير محدد"}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-12 print:gap-0 pb-20 items-center overflow-x-auto w-full px-4 sm:px-0 print:px-0 print:pb-0">
         <div id="contract-preview-pages" className="min-w-[210mm] sm:min-w-0 flex flex-col items-center gap-12 print:gap-0 scale-75 md:scale-100 origin-top print:scale-100 print:m-0 print:w-[210mm]">
           {language === "fr" ? (
@@ -2390,6 +2559,7 @@ export default function ContractPrint() {
               contract={contract}
               projectDetails={projectDetails}
               isRoyal={isRoyal}
+              selectedTemplate={selectedTemplate}
               themeColors={themeColors}
               totalReceivedReact={totalReceivedReact}
               remainingBalanceReact={remainingBalanceReact}
@@ -2398,10 +2568,525 @@ export default function ContractPrint() {
               convertToFrenchWords={convertToFrenchWords}
               getFullProjectInfo={getFullProjectInfo}
               getMunicipality={getMunicipality}
+              refData={refData}
             />
+          ) : selectedTemplate === "v3" ? (
+            <>
+              {/* PAGE 1: Cover & Identities (Template V3) */}
+              <div className="contract-page rtl font-arabic relative flex flex-col bg-white select-none">
+                <div className="flex-grow flex flex-col justify-between z-10 relative">
+                  {/* Header */}
+                  <div className="flex justify-between items-start w-full border-b border-slate-100 pb-4">
+                    <div className="text-right">
+                      <h2 className="text-sm font-black text-slate-900 tracking-wide font-arabic">مؤسسة كنفور للخدمات العقارية</h2>
+                      <h3 className="text-[10px] font-bold text-slate-500 tracking-wider font-sans uppercase">CONFORT IMMOBILIERE</h3>
+                      <p className="text-[9px] text-slate-400 mt-0.5">بن مراد برج الكيفان، الجزائر العاصمة</p>
+                    </div>
+                    <div className="text-left flex flex-col items-end">
+                      <span className="text-[9px] text-slate-400 mb-1 font-arabic">رمز العقد السري:</span>
+                      <span className="font-mono text-sm tracking-widest bg-slate-50 border border-slate-100 rounded-md px-2.5 py-0.5 select-all inline-flex items-center">
+                        <span className="text-slate-900 font-extrabold">{refData.projectCode}</span>
+                        <span className="text-amber-600 font-semibold">{refData.manualClientNum}</span>
+                        <span className="text-slate-400 font-extralight">{refData.dateCode}</span>
+                        <span className="text-blue-700 font-extrabold">{refData.hash}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Title Block */}
+                  <div className="my-auto text-center py-6">
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-relaxed max-w-2xl mx-auto font-arabic">
+                      ملحق تقني ومالي لعقد الوعد بالبيع
+                      <br />
+                      <span className="text-lg font-medium text-slate-500 mt-2 block">(اتفاقية حجز عقار في طور الإنجاز)</span>
+                    </h1>
+                  </div>
+
+                  {/* The Parties Layout (Strict Two-Column Grid with No boxes / No solid borders) */}
+                  <div className="grid grid-cols-2 gap-12 my-6 w-full text-right">
+                    {/* Right column: Promoter */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-black text-slate-905 uppercase tracking-widest border-r-4 pr-2.5 border-slate-900 leading-none h-4 flex items-center">
+                        المرقي العقاري
+                      </h3>
+                      <div className="space-y-2 text-xs text-slate-700 leading-relaxed font-arabic">
+                        <p className="font-bold text-slate-900 text-sm">مؤسسة كنفور للخدمات العقارية</p>
+                        <p>العنوان المختار: بن مراد برج الكيفان، الجزائر العاصمة</p>
+                        <p>المسجل في السجل التجاري تحت رقم: <span dir="ltr" className="inline-block font-sans font-semibold">16/01-122 5143817</span></p>
+                        <div className="text-[10px] text-slate-500 font-sans border-t border-slate-100 pt-2 space-y-0.5">
+                          <p>NIS: 1989 4710 01019 26</p>
+                          <p>NIF: 18947100101918641601</p>
+                        </div>
+                        <p className="font-bold text-slate-900 mt-2">يمثلها قانوناً مسيرها السيد: نجار عبد الغني، والمشار إليه بـ (المرقي العقاري).</p>
+                      </div>
+                    </div>
+
+                    {/* Left column: Buyer */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-black text-slate-905 uppercase tracking-widest border-r-4 pr-2.5 border-slate-900 leading-none h-4 flex items-center">
+                        المشترِي (الحاجز)
+                      </h3>
+                      <div className="space-y-2.5 text-xs text-slate-700 leading-relaxed font-arabic">
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">الاسم الكامل:</span>
+                          <p className="font-bold text-slate-900 text-sm">{contract.gender}: {contract.customerName}</p>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">{contract.idType || "الحامل لبطاقة التعريف الوطنية"}:</span>
+                          <p className="font-semibold text-slate-800 font-sans">{contract.idNumber}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">تاريخ الصدور:</span>
+                            <p className="font-semibold text-slate-800 font-sans">{contract.idIssueDate}</p>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">تاريخ الانتهاء:</span>
+                            <p className="font-semibold text-slate-800 font-sans">{contract.idExpiryDate}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">الموطن والعنوان المختار:</span>
+                          <p className="font-semibold text-slate-800">{contract.address}</p>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">رقم هاتف المشتري:</span>
+                          <p className="font-black text-slate-900 font-sans">{contract.phoneNumber}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="contract-footer z-10 w-full mt-auto">
+                  <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+                  <div className="flex justify-between items-center text-[9px] text-slate-400 font-arabic">
+                    <span>مؤسسة كنفور للخدمات العقارية • ملحق الوعد بالبيع</span>
+                    <span className="font-sans font-bold">الصفحة 1 من 7</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* PAGE 2: The Object & Unit Description (Template V3) */}
+              <div className="contract-page rtl font-arabic relative flex flex-col bg-white select-none">
+                <div className="flex-grow py-2 z-10 relative space-y-6">
+                  {/* Small Section Header */}
+                  <div className="border-r-4 border-slate-900 pr-3 mb-6">
+                    <h2 className="text-lg font-black text-slate-900 font-arabic">المــــــــوضــــــــوع وتعيين العقار</h2>
+                  </div>
+
+                  <div className="space-y-4 text-xs md:text-sm text-slate-700 leading-relaxed text-justify font-arabic">
+                    <p className="font-bold text-slate-900">ينص هذا الملحق الاتفاقي على التزام المرقي العقاري بتشييد وحدة سكنية معينة للمشتري وتفاصيلها على النحو التالي:</p>
+                    
+                    <div className="p-5 bg-slate-50 rounded-2xl border-r-4 border-slate-800 space-y-2">
+                      <p>
+                        <span className="font-bold text-slate-900">الوحدة العقارية (الشقة):</span> فئة <span className="font-bold">{contract.apartmentType}</span>، تقع في <span className="font-bold text-slate-900">{convertFloorToOrdinal(contract.floor)}</span> في عمارة ذات البناء رقم <span className="font-bold text-slate-900">{contract.building}</span> في إقامة <span className="font-bold text-slate-900">{projectDetails?.name || contract.project.split("(")[0].trim()}</span> الكائنة بالبلدية الإقليمية <span className="font-bold text-slate-900">{getCleanMunicipalityAr()}</span>.
+                      </p>
+                      <p>
+                        تحمل هذه الشقة الرمز المشفر <span className="font-bold font-sans text-slate-900 bg-white inline-block px-2 py-0.5 rounded border border-slate-100">{contract.apartmentCode}</span> بمساحة كلية مقدرة بحوالي <span className="font-bold font-sans text-slate-950">{formatArabicArea(contract.area)}</span>.
+                      </p>
+                      <p>
+                        {contract.parking?.exists ? (
+                          <span>وتضم هذه المعاملة حصة مخصصة لموقف سيارات رقم <span className="font-bold font-sans text-slate-950">{contract.parking.number}</span> كائن بالقبو السفلي للمشروع.</span>
+                        ) : (
+                          <span className="text-slate-500 font-light">• يقر الطرفان صراحة بعدم شمول هذه المعاملة على حصة موقف سيارات في قبو العمارة.</span>
+                        )}
+                      </p>
+                      <p>
+                        تشتمل الشقة على المرافق الأساسية التالية: <span className="font-semibold text-slate-850">{contract.roomCount > 1 ? `0${contract.roomCount} غرف` : "غرفة واحدة"}، حمام، مطبخ، ومرحاض</span> شاملة الحوائط والفراغات الهندسية المقررة بالتصميم الملحق.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 mt-4">
+                      <h3 className="font-bold text-slate-900 text-sm">تعيين المحيط الإنشائي للمشروع:</h3>
+                      <p className="text-slate-600">
+                        تعتبر الشقة والوحدة الإنشائية سالفة الذكر جزءاً أصيلاً وعضوياً من المحيط العمراني والتطوير العقاري الكائن بـ <span className="font-bold text-slate-900">{getCleanProjectLocationAr()}</span>.
+                      </p>
+                    </div>
+
+                    {contract.notaryName && (
+                      <div className="pt-4 border-t border-slate-100 text-slate-700">
+                        <p className="font-bold text-slate-900 font-arabic">مرجعية التوثيق الرسمية للعقد:</p>
+                        <p className="mt-1">
+                          تم تحرير وقيد عقد الوعد بالبيع الرسمي لهذا العقار أمام مكتب الموثق(ة) السيد(ة) <span className="font-bold text-slate-900">{cleanNotaryName(contract.notaryName)}</span> بتاريخ محدد بـ <span className="font-bold font-sans text-slate-950">{contract.promiseOfSaleDate || contract.signingDate}</span> والتي يعقبها سريان كافة الملاحق التوضيحية المتممة.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="contract-footer z-10 w-full mt-auto">
+                  <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+                  <div className="flex justify-between items-center text-[9px] text-slate-400 font-arabic">
+                    <span>مؤسسة كنفور للخدمات العقارية • ملحق الوعد بالبيع</span>
+                    <span className="font-sans font-bold">الصفحة 2 من 7</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* PAGE 3: Price & Payment terms (Template V3) */}
+              <div className="contract-page rtl font-arabic relative flex flex-col bg-white select-none">
+                <div className="flex-grow py-2 z-10 relative space-y-6">
+                  {/* Small Section Header */}
+                  <div className="border-r-4 border-slate-900 pr-3">
+                    <h2 className="text-lg font-black text-slate-900 font-arabic">ثمن العقار الإجمالي وخطة السداد</h2>
+                  </div>
+
+                  <div className="space-y-4 font-arabic text-xs md:text-sm text-slate-700">
+                    <p className="text-slate-800">
+                      اتفق الطرفان المتعاقدان بكامل الأهلية والرضا على تحديد القيمة المالية المتعلقة بتشييد الشقة وبيعها كالتالي:
+                    </p>
+
+                    {/* Standout Financial Highlight Block (Replace boxes with elegant background tint & accent border) */}
+                    <div className="bg-slate-50 p-6 rounded-2xl border-r-4 border-slate-800 relative overflow-hidden space-y-2">
+                      <span className="text-slate-500 block text-[11px] font-medium leading-none font-arabic">الثمن المالي الإجمالي الشامل:</span>
+                      <p className="text-2xl font-black text-slate-950 font-sans tracking-tight leading-none">
+                        {(contract.totalPrice + (contract.parking?.price || 0)).toLocaleString()} <span className="text-slate-650 text-sm font-bold font-arabic">دج</span>
+                      </p>
+                      <p className="text-xs text-slate-600 leading-relaxed pt-1.5 border-t border-slate-200/50">
+                        فقط: <span className="font-bold text-slate-900">({convertToArabicWords(contract.totalPrice + (contract.parking?.price || 0))})</span>.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                      <p className="font-bold text-slate-900">تفاصيل وتفتيت مبالغ العقد المالي:</p>
+                      <ul className="space-y-2 list-none pr-3 text-slate-700">
+                        <li className="flex items-start gap-2">
+                          <span className="text-slate-800 font-black tracking-none shrink-0">•</span>
+                          <span>قيمة وتكلفة الشقة المحددة: <span className="font-sans font-bold text-slate-950">{contract.totalPrice.toLocaleString()}</span> دج ({convertToArabicWords(contract.totalPrice)}).</span>
+                        </li>
+                        {contract.parking?.exists && (
+                          <li className="flex items-start gap-2">
+                            <span className="text-slate-800 font-black tracking-none shrink-0">•</span>
+                            <span>تكلفة حصة موقف السيارات بالقبو: <span className="font-sans font-bold text-slate-950">{contract.parking.price.toLocaleString()}</span> دج ({convertToArabicWords(contract.parking.price)}) (رقم الحصة {contract.parking.number}).</span>
+                          </li>
+                        )}
+                        {contract.reservation?.exists ? (
+                          <li className="flex items-start gap-2">
+                            <span className="text-slate-800 font-black tracking-none shrink-0">•</span>
+                            <span>دفعة مقدم حجز الشقة وتصديقها: تم استلام مبلغ <span className="font-sans font-bold text-slate-950">{contract.reservation.amount.toLocaleString()}</span> دج في {contract.reservation.date} ({convertToArabicWords(contract.reservation.amount)}).</span>
+                          </li>
+                        ) : (
+                          <li className="flex items-start gap-2 text-slate-500">
+                            <span className="text-slate-300 font-black tracking-none shrink-0">•</span>
+                            <span>لا تتوافق بنود هذه المعاملة مع أي دفع مسبق من نوع الحجز الأولي المؤقت.</span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+
+                    <div className="p-4 bg-slate-50/50 rounded-xl space-y-1 text-xs border-r-2 border-slate-400">
+                      {contract.reservation?.exists ? (
+                        <>
+                          <p>
+                            ـ دفعة إضافية تم دفعها تزامناً مع توقيع العقد: <span className="font-bold font-sans text-slate-950">{contract.downPayment.toLocaleString()} دج</span> ({convertToArabicWords(contract.downPayment)}).
+                          </p>
+                          <p className="font-bold text-slate-900 mt-1">
+                            ـ مجموع المقبوضات المالية المستلمة فعلياً حتى اليوم: <span className="font-sans font-black text-slate-955">{totalReceivedReact.toLocaleString()} دج</span> ({convertToArabicWords(totalReceivedReact)}).
+                          </p>
+                        </>
+                      ) : (
+                        <p className="font-bold text-slate-910">
+                          ـ مجموع المبالغ المحصلة والمقبوضة فعلياً من المشتري للآن: <span className="font-sans font-black text-slate-955">{totalReceivedReact.toLocaleString()} دج</span> ({convertToArabicWords(totalReceivedReact)}).
+                        </p>
+                      )}
+
+                      {(contract.totalPrice + (contract.parking?.price || 0)) > totalReceivedReact ? (
+                        <p className="text-slate-800 mt-2">
+                          ـ الرصيد المتبقي المستحق في ذمة المشتري: <span className="font-sans font-bold text-slate-950">{(contract.totalPrice + (contract.parking?.price || 0) - totalReceivedReact).toLocaleString()} دج</span> ({convertToArabicWords(remainingBalanceReact)}) والذي سيتم تحصيله وسداده بنظم وجدول المواعيد المتفق عليه مسبقاً.
+                        </p>
+                      ) : (
+                        <p className="font-bold text-slate-900 mt-2 text-center py-2 bg-slate-100 rounded-lg">يقر المسير بالاستلام الفعلي والكامل لكامل ثمن العقار المالي المتوافق عليه.</p>
+                      )}
+
+                      {contract.notaryFee && contract.notaryFee > 0 && (
+                        <p className="text-[11px] text-slate-600 mt-1 pt-1 border-t border-slate-200">
+                          ـ مصاريف وأتعاب الموثق المقررة للمعاملة: <span className="font-bold font-sans">{contract.notaryFee.toLocaleString()}</span> دج ({convertToArabicWords(contract.notaryFee)}).
+                        </p>
+                      )}
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 leading-relaxed text-justify mt-4 border-t border-slate-101 pt-2 font-bold font-arabic">
+                      يوافق الطرفان طوعاً بأن ثمن البيع المقدر يعتبر قطعياً ونهائياً ونافذاً في الحال بشكل غير قابل للتعديل أو الطعن بأي ظرف كان. ويتحمل المشتري بمفرده كافة حقوق التسجيل والإشهار ومصاريف رعاية الأجزاء المشتركة.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="contract-footer z-10 w-full mt-auto">
+                  <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+                  <div className="flex justify-between items-center text-[9px] text-slate-400 font-arabic">
+                    <span>مؤسسة كنفور للخدمات العقارية • ملحق الوعد بالبيع</span>
+                    <span className="font-sans font-bold">الصفحة 3 من 7</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* PAGE 4: Delivery terms & Declarations (Template V3) */}
+              <div className="contract-page rtl font-arabic relative flex flex-col bg-white select-none">
+                <div className="flex-grow py-2 z-10 relative space-y-6">
+                  {/* Small Section Header */}
+                  <div className="border-r-4 border-slate-900 pr-3">
+                    <h2 className="text-lg font-black text-slate-900 font-arabic">آجال تسليم الوحدات العقارية والتصريحات</h2>
+                  </div>
+
+                  <div className="space-y-4 font-arabic text-xs md:text-sm text-slate-700 leading-relaxed">
+                    <div className="space-y-2">
+                      <h3 className="font-bold text-slate-900 text-sm">آجال وتعهدات تسليم المشروع:</h3>
+                      <p className="text-justify text-slate-705">
+                        يلتزم المرقي العقاري التزاماً تأماً وبدرجة عالية من العناية بتشييد وبناء الشقة السكنية وإنهائها لتسليمها الفعلي للمشتري في غضون فترة زمنية أقصاها <span className="font-bold text-slate-950">{contract.duration}</span> ويرتبط التسليم النهائي والفعلي للمفاتيح بتمام المشروع بصفة تامة وتوقيع كلا الطرفين على سند ومحضر التسليم الرسمي.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 pt-2">
+                      <h3 className="font-bold text-slate-900 text-sm">تصريحات المرقي والتزامات التشطيب الداخلي:</h3>
+                      <p className="text-justify text-slate-705">
+                        يؤكد المرقي العقاري للخدمات الإنشائية والتشييد بأن الشقة في طور الإنجاز وستُسلم للمشتري بحالة <span className="font-bold text-slate-950">({contract.isFinished ? "جاهزة بالكامل" : "نصف جاهزة"})</span> مع الخضوع لنظام الضمانات الفنية العادية واحترام المقاييس المعتمدة في العمران. كما يشمل العمل تركيب الشبكات الكهربائية الرئيسية والمصاعد والشبكة المائية وتجهيزات كاميرات المراقبة.
+                      </p>
+
+                      {!contract.isFinished && (
+                        <p className="text-justify text-slate-700 p-4 bg-slate-50 rounded-xl text-xs border-r-2 border-amber-600">
+                          <span className="font-bold text-slate-900 block mb-1">تنبيه والتزام خاص بالأشغال نصف الجاهزة:</span>
+                          بطلب وموافقة صريحة من المشتري، يلتزم الأخير التزاماً باتاً بإنهاء كافة أشغال الصباغة والتهيئة والتشطيب الداخلي لشحن شقته بالجمال في غضون ستة (06) أشهر من تاريخ تسلمه للمفاتيح وسنده، مع تحمله للمسؤولية التامة عن الحفاظ على الأجزاء الهيكلية المشتركة والواجهات الخارجية.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 pt-2">
+                      <h3 className="font-bold text-slate-900 text-sm">معاينة وإقرار المشتري:</h3>
+                      <p className="text-justify text-slate-705">
+                        يقر المشتري صراحة بأنه قد عاين موقع المشروع السكني على أرض الواقع وعاين كروكيات وتصاميم ومخطط الكتلة (Plan de masse) والارتفاعات ومستوى التفاصيل الفنية للشقة وارتضاها لنفسه بحالها وبكيفية كاملة وبدون أي تحفظ.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="contract-footer z-10 w-full mt-auto">
+                  <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+                  <div className="flex justify-between items-center text-[9px] text-slate-400 font-arabic">
+                    <span>مؤسسة كنفور للخدمات العقارية • ملحق الوعد بالبيع</span>
+                    <span className="font-sans font-bold">الصفحة 4 من 7</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* PAGE 5: Obligations & Rights Part 1 (Template V3) */}
+              <div className="contract-page rtl font-arabic relative flex flex-col bg-white select-none">
+                <div className="flex-grow py-2 z-10 relative space-y-4">
+                  {/* Small Section Header */}
+                  <div className="border-r-4 border-slate-900 pr-3">
+                    <h2 className="text-lg font-black text-slate-900 font-arabic">جدول الالتزامات والشروط الاتفاقية العامة</h2>
+                  </div>
+
+                  <div className="space-y-5 font-arabic text-xs md:text-sm">
+                    {/* General obligations */}
+                    {groupedClauses.general.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="font-bold text-slate-950 text-sm border-r-2 border-slate-800 pr-2 font-arabic">أولاً: الالتزامات المتبادلة العامة</h3>
+                        <ul className="space-y-2 pr-1">
+                          {groupedClauses.general.map((clause: string, idx: number) => (
+                            <li key={idx} className="flex gap-2 text-justify leading-relaxed text-slate-700">
+                              <span className="font-bold shrink-0 text-slate-900">•</span>
+                              <span>{clause}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Resignation conditions */}
+                    {groupedClauses.termination.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="font-bold text-slate-950 text-sm border-r-2 border-slate-800 pr-2 font-arabic">ثانياً: شروط الفسخ والتراجع والتسويات الإدارية</h3>
+                        <ul className="space-y-2 pr-1">
+                          {groupedClauses.termination.map((clause: string, idx: number) => (
+                            <li key={idx} className="flex gap-2 text-justify leading-relaxed text-slate-700">
+                              <span className="font-bold shrink-0 text-slate-900">•</span>
+                              <span>{clause}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Halt/Bankruptcy */}
+                    {groupedClauses.halting.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="font-bold text-slate-950 text-sm border-r-2 border-slate-800 pr-2 font-arabic">ثالثاً: شروط معالجة توقف المشروع أو الصعوبات الاستثنائية</h3>
+                        <ul className="space-y-2 pr-1">
+                          {groupedClauses.halting.map((clause: string, idx: number) => (
+                            <li key={idx} className="flex gap-2 text-justify leading-relaxed text-slate-700">
+                              <span className="font-bold shrink-0 text-slate-900">•</span>
+                              <span>{clause}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="contract-footer z-10 w-full mt-auto">
+                  <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+                  <div className="flex justify-between items-center text-[9px] text-slate-400 font-arabic">
+                    <span>مؤسسة كنفور للخدمات العقارية • ملحق الوعد بالبيع</span>
+                    <span className="font-sans font-bold">الصفحة 5 من 7</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* PAGE 6: Obligations Part 2 & Complementary documents (Template V3) */}
+              <div className="contract-page rtl font-arabic relative flex flex-col bg-white select-none">
+                <div className="flex-grow py-2 z-10 relative flex flex-col justify-between">
+                  <div className="space-y-4">
+                    {/* Small Section Header */}
+                    <div className="border-r-4 border-slate-900 pr-3">
+                      <h2 className="text-lg font-black text-slate-900 font-arabic">تابع شروط العقود والقوانين الملحقة والمرفقات</h2>
+                    </div>
+
+                    <div className="space-y-4 font-arabic text-xs md:text-sm">
+                      {/* Assignment */}
+                      {groupedClauses.assignment.length > 0 && (
+                        <div className="space-y-1.5">
+                          <h3 className="font-bold text-slate-950 text-sm border-r-2 border-slate-800 pr-2 font-arabic">رابعاً: أحكام التنازل وانتقال الحقوق والإرث</h3>
+                          <ul className="space-y-1.5 pr-1">
+                            {groupedClauses.assignment.map((clause: string, idx: number) => (
+                              <li key={idx} className="flex gap-2 text-justify text-slate-700 leading-relaxed">
+                                <span className="font-bold shrink-0 text-slate-900">•</span>
+                                <span>{clause}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Legal status */}
+                      {groupedClauses.legalStatus.length > 0 && (
+                        <div className="space-y-1.5">
+                          <h3 className="font-bold text-slate-950 text-sm border-r-2 border-slate-800 pr-2 font-arabic">خامساً: الوضعية القانونية والترخيص العقاري للمشروع</h3>
+                          <ul className="space-y-1.5 pr-1">
+                            {groupedClauses.legalStatus.map((clause: string, idx: number) => (
+                              <li key={idx} className="flex gap-2 text-justify text-slate-700 leading-relaxed">
+                                <span className="font-bold shrink-0 text-slate-900">•</span>
+                                <span>{clause}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Taxes */}
+                      {groupedClauses.taxes.length > 0 && (
+                        <div className="space-y-1.5">
+                          <h3 className="font-bold text-slate-950 text-sm border-r-2 border-slate-800 pr-2 font-arabic">سادساً: التزامات الضرائب والتكاليف والرسوم المترتبة</h3>
+                          <ul className="space-y-1.5 pr-1">
+                            {groupedClauses.taxes.map((clause: string, idx: number) => (
+                              <li key={idx} className="flex gap-2 text-justify text-slate-700 leading-relaxed">
+                                <span className="font-bold shrink-0 text-slate-900">•</span>
+                                <span>{clause}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Disputes */}
+                      {groupedClauses.disputes.length > 0 && (
+                        <div className="space-y-1.5">
+                          <h3 className="font-bold text-slate-950 text-sm border-r-2 border-slate-800 pr-2 font-arabic">سابعاً: فض النزاعات والقضاء المختص</h3>
+                          <ul className="space-y-1.5 pr-1">
+                            {groupedClauses.disputes.map((clause: string, idx: number) => (
+                              <li key={idx} className="flex gap-2 text-justify text-slate-700 leading-relaxed">
+                                <span className="font-bold shrink-0 text-slate-900">•</span>
+                                <span>{clause}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-4 border-t border-slate-100">
+                    <p className="leading-relaxed text-justify text-xs text-slate-600 font-arabic">
+                      يوافق لزاماً الطرفان بأن طابَع العقد يماثل بصفة كلية الشروط المكتوبة والمنصوص عليها بمتن العقد الأصلي لكونه ملحقاً مكمّلاً يسري عليه كافة الالتزامات والمطالب القانونية المعتمدة.
+                    </p>
+
+                    <div className="p-3 bg-slate-50 rounded-xl space-y-1 border-r-2 border-slate-500 text-xs">
+                      <p className="font-bold text-slate-900 font-arabic">المخططات والوثائق الإلزامية المرفقة بتقرير الملحق:</p>
+                      <ul className="space-y-0.5 list-none pr-2 font-arabic text-slate-700">
+                        <li className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900">•</span>
+                          <span>مخطط الكتلة المتكامل والمؤشر والمسجل (Plan de masse).</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900">•</span>
+                          <span>المسقط الهندسي للشقة والتصميم التفصيلي لها (Plan appartement).</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="contract-footer z-10 w-full mt-auto">
+                  <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+                  <div className="flex justify-between items-center text-[9px] text-slate-400 font-arabic">
+                    <span>مؤسسة كنفور للخدمات العقارية • ملحق الوعد بالبيع</span>
+                    <span className="font-sans font-bold">الصفحة 6 من 7</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* PAGE 7: Symmetrical Signatures (Template V3) */}
+              <div className="contract-page rtl font-arabic relative flex flex-col bg-white select-none">
+                <div className="flex flex-col flex-grow justify-center items-center py-6 space-y-8 z-10 relative">
+                  <div className="text-center w-full mb-2">
+                    <p className="text-base text-slate-700 font-arabic">
+                      حرر ورُقِّم بـ برج الكيفان في تاريخ: <span className="font-sans font-black text-slate-950 bg-slate-50 px-3 py-1 rounded border border-slate-100">{contract.signingDate}</span>
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-12 text-center text-sm font-bold w-full max-w-xl mx-auto px-4 font-arabic">
+                    <div className="space-y-3">
+                      <div className="h-14 flex flex-col justify-between">
+                        <p className="text-slate-950 font-black">بصمة وإمضاء المشتري</p>
+                        <p className="text-xs font-semibold mt-1 text-slate-700">
+                          {contract.gender}: {contract.customerName}
+                        </p>
+                      </div>
+                      <div className="h-32 border border-dashed border-slate-300 rounded-xl flex items-center justify-center text-[10px] font-normal bg-slate-50 text-slate-450">
+                        (بصمة الحاجز على الاتفاقية)
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="h-14 flex flex-col justify-between">
+                        <p className="text-slate-950 font-black">عن مؤسسة كنفور للخدمات العقارية</p>
+                        <p className="text-xs font-bold mt-1 text-slate-700">المسير: نجار عبد الغني</p>
+                      </div>
+                      <div className="h-32 border border-dashed border-slate-300 rounded-xl flex items-center justify-center text-[10px] font-normal bg-slate-50 text-slate-450">
+                        (الإمضاء والختم الرسمي للمؤسسة)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="contract-footer z-10 w-full mt-auto">
+                  <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+                  <div className="flex justify-between items-center text-[9px] text-slate-400 font-arabic">
+                    <span>مؤسسة كنفور للخدمات العقارية • ملحق الوعد بالبيع</span>
+                    <span className="font-sans font-bold">الصفحة 7 من 7</span>
+                  </div>
+                </div>
+              </div>
+            </>
           ) : (
             <>
-              {/* PAGE 1: Title Page */}
               <div className={`contract-page rtl font-arabic relative flex flex-col ${isRoyal ? 'bg-gradient-to-b from-white to-emerald-50/5' : ''}`}>
             {isRoyal && (
               <div className="absolute inset-4 border-2 border-double border-amber-600/30 pointer-events-none rounded-2xl z-0" />
@@ -2416,16 +3101,34 @@ export default function ContractPrint() {
 
               <div className="my-8" />
 
-              <div className="my-6">
+              <div className="my-6 text-center">
                 <h1 className={`text-2xl md:text-3xl font-bold py-6 px-10 leading-relaxed text-center ${
                   isRoyal 
-                    ? 'border-y border-double border-emerald-800 text-emerald-900 bg-emerald-50/20 rounded' 
+                    ? 'border-y border-double border-emerald-800 text-emerald-950 bg-emerald-50/20 rounded' 
                     : 'border-y-2 border-black'
                 }`}>
                   ملحق تقني ومالي لعقد الوعد بالبيع
                   <br />
                   <span className="text-lg md:text-xl font-normal opacity-85">(اتفاقية حجز عقار في طور الإنجاز)</span>
                 </h1>
+
+                {/* Contract Reference Component (Typographical Contrast Display) */}
+                <div className="mt-3 text-center">
+                  <span className="font-mono text-xl tracking-widest select-all inline-flex items-center justify-center">
+                    <span className={`ref-segment-proj ${isRoyal ? 'text-emerald-800 font-black' : 'text-slate-900 font-black'}`}>
+                      {refData.projectCode}
+                    </span>
+                    <span className="ref-segment-client font-medium text-amber-600 dark:text-amber-400">
+                      {refData.manualClientNum}
+                    </span>
+                    <span className="ref-segment-date font-extralight text-slate-400 dark:text-slate-500">
+                      {refData.dateCode}
+                    </span>
+                    <span className="ref-segment-hash font-black text-blue-700 dark:text-blue-400">
+                      {refData.hash}
+                    </span>
+                  </span>
+                </div>
               </div>
 
               <div className={`w-full max-w-xl p-8 text-center my-6 relative overflow-hidden ${

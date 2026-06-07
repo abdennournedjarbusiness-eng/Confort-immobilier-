@@ -5,6 +5,7 @@ interface FrenchContractPagesProps {
   contract: Contract;
   projectDetails?: any;
   isRoyal: boolean;
+  selectedTemplate?: "burgundy" | "royal" | "v3";
   themeColors: {
     borderRAccent: string;
     bullet: string;
@@ -16,12 +17,20 @@ interface FrenchContractPagesProps {
   convertToFrenchWords: (num: number) => string;
   getFullProjectInfo: (projectStr: string) => string;
   getMunicipality: (projectStr: string) => string;
+  refData?: {
+    projectCode: string;
+    manualClientNum: string;
+    dateCode: string;
+    hash: string;
+    combined: string;
+  };
 }
 
 export default function FrenchContractPages({
   contract,
   projectDetails,
   isRoyal,
+  selectedTemplate = "burgundy",
   themeColors,
   totalReceivedReact,
   remainingBalanceReact,
@@ -30,6 +39,7 @@ export default function FrenchContractPages({
   convertToFrenchWords,
   getFullProjectInfo,
   getMunicipality,
+  refData,
 }: FrenchContractPagesProps) {
   
   const cleanNotaryName = (name: string): string => {
@@ -111,6 +121,524 @@ export default function FrenchContractPages({
     .replace(/شهور/g, "mois")
     .trim();
 
+  if (selectedTemplate === "v3") {
+    return (
+      <>
+        {/* PAGE 1: Cover & Identities */}
+        <div className="contract-page ltr font-sans relative flex flex-col bg-white select-none">
+          {/* Header */}
+          <div className="flex justify-between items-start border-b border-slate-100 pb-5 mb-8 z-10">
+            <div className="text-left">
+              <h2 className="text-sm font-black text-slate-900 tracking-wide">CONFORT SERVICES IMMOBILIERS</h2>
+              <h3 className="text-[10px] font-bold text-slate-500 tracking-wider">CONFORT IMMOBILIERE</h3>
+              <p className="text-[9px] text-slate-400 mt-0.5">Bordj El Kiffan, Alger</p>
+            </div>
+            
+            <div className="text-right flex flex-col items-end">
+              <span className="text-[9px] text-slate-400 mb-1">REFERENCE DE SECURITE:</span>
+              <span className="font-mono text-xs tracking-widest bg-slate-50 border border-slate-100 rounded-md px-2.5 py-1 select-all inline-flex items-center">
+                <span className="text-slate-900 font-extrabold">{refData?.projectCode}</span>
+                <span className="text-amber-600 font-semibold">{refData?.manualClientNum}</span>
+                <span className="text-slate-400 font-extralight">{refData?.dateCode}</span>
+                <span className="text-blue-700 font-extrabold">{refData?.hash}</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Document Title Component */}
+          <div className="flex-grow flex flex-col justify-center items-center py-10 z-10 text-center">
+            <div className="max-w-2xl px-6 py-8 rounded-3xl bg-slate-50/50 border border-slate-100 relative">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-900 text-white text-[8px] tracking-widest uppercase font-black px-3 py-1 rounded-full">
+                DOCUMENT PROTOCOLAIRE
+              </div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-relaxed uppercase">
+                Avenant Technique et Financier
+              </h1>
+              <div className="h-[2px] bg-slate-900 w-16 mx-auto my-4"></div>
+              <p className="text-xs font-semibold text-slate-500 max-w-lg mx-auto leading-relaxed italic">
+                (Convention de réservation d'un bien immobilier en cours de réalisation, rattachée à l'acte de promesse de vente)
+              </p>
+            </div>
+          </div>
+
+          {/* The Parties (2 Column Grid) */}
+          <div className="grid grid-cols-2 gap-10 my-8 w-full text-left border-t border-slate-100 pt-8 z-10">
+            {/* Box 1: Promoter */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest border-l-4 pl-3 border-slate-900 leading-none flex items-center">
+                Le Promoteur
+              </h3>
+              <div className="space-y-2 text-[11px] text-slate-700 leading-relaxed text-justify">
+                <p className="font-bold text-slate-900 text-xs">CONFORT SERVICES IMMOBILIERS</p>
+                <p className="text-slate-500">Adresse professionnelle : Ben M'rad Bordj El Kiffan, Alger</p>
+                <p>Inscrit au Registre du Commerce sous le numéro : <span className="font-sans font-semibold text-slate-900">16/01-122 5143817</span></p>
+                <div className="text-[10px] text-slate-400 font-sans border-t border-slate-100 pt-2 space-y-0.5">
+                  <p>NIS : 1989 4710 01019 26</p>
+                  <p>NIF : 18947100101918641601</p>
+                </div>
+                <p className="font-semibold text-slate-800 mt-2">Dûment représenté par son gérant, M. NEJJAR ABDELGHANI, dénommé ci-après "Le Promoteur".</p>
+              </div>
+            </div>
+
+            {/* Box 2: Buyer */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest border-l-4 pl-3 border-slate-900 leading-none flex items-center">
+                L'Acquéreur
+              </h3>
+              <div className="space-y-2 text-[11px] text-slate-700 leading-relaxed">
+                <div>
+                  <span className="text-slate-400 text-[10px] block font-medium">Nom complet de l'acquéreur :</span>
+                  <p className="font-black text-slate-900 text-xs">{genderWord} {actualCustomerName}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] block font-medium">Document d'identité d'enregistrement :</span>
+                  <p className="font-semibold text-slate-800 font-sans">{contract.idType || "Carte d'identité" || "Passeport"} N° {contract.idNumber}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-slate-400 text-[10px] block font-medium">Date de délivrance :</span>
+                    <p className="font-semibold text-slate-800 font-sans">{contract.idIssueDate}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[10px] block font-medium">Date d'expiration :</span>
+                    <p className="font-semibold text-slate-850 font-sans">{contract.idExpiryDate}</p>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] block font-medium">Téléphone de contact direct :</span>
+                  <p className="font-bold text-slate-900 font-sans">{contract.phoneNumber}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] block font-medium">Domicile de résidence déclaré :</span>
+                  <p className="font-semibold text-slate-805">{actualAddress}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="contract-footer z-10 w-full mt-auto">
+            <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+            <div className="flex justify-between items-center text-[9px] text-slate-400">
+              <span>CONFORT IMMOBILIERE • AVENANT TECHNIQUE ET FINANCIER</span>
+              <span className="font-sans font-bold">Page 1 sur 7</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 2: Object & Designation */}
+        <div className="contract-page ltr font-sans relative flex flex-col bg-white select-none">
+          <div className="flex-grow py-2 z-10 relative space-y-6">
+            <div className="border-l-4 border-slate-900 pl-3 mb-6">
+              <h2 className="text-lg font-black text-slate-900">I. OBJET ET DESIGNATION DU BIEN</h2>
+            </div>
+
+            <div className="space-y-4 text-[12px] text-slate-705 leading-relaxed text-left text-justify">
+              <p className="font-bold text-slate-900">Le présent avenant a pour objet de formaliser les conditions techniques et financières ainsi que la désignation structurelle du bien immobilier spécifié ci-dessous :</p>
+              
+              <div className="p-5 bg-slate-50 rounded-2xl border-l-4 border-slate-850 space-y-3">
+                <p>
+                  <span className="font-bold text-slate-900 block text-xs uppercase mb-1 tracking-wider text-slate-500">Désignation technique et niveau :</span>
+                  Une unité immobilière (Appartement de type <span className="font-bold">{contract.apartmentType}</span>), situé au <span className="font-bold">{convertFloorToFrenchOrdinal(contract.floor)}</span>, Bloc/Bâtiment <span className="font-bold">{contract.building}</span> au sein de la promotion immobilière dénommée <span className="font-bold">"{actualProjectName}"</span> construite sur le territoire de la commune de <span className="font-bold">{actualMunicipality}</span>, {actualWilayaFr}.
+                </p>
+                <div className="h-[1px] bg-slate-200/50 my-2"></div>
+                <p>
+                  L'unité résidentielle est identifiée par le code technique de sécurité <span className="font-mono font-bold text-slate-900 bg-white inline-block px-2 py-0.5 rounded border border-slate-150">{contract.apartmentCode}</span>, pour une superficie globale approximative estimée à <span className="font-bold font-sans">{contract.area} m²</span>.
+                </p>
+                <div className="h-[1px] bg-slate-200/50 my-2"></div>
+                <p>
+                  {contract.parking?.exists ? (
+                    <span>Cette transaction inclut également, en tant que partie intégrante, l'attribution exclusive d'une place de stationnement de parking en sous-sol identifiée sous le numéro <span className="font-bold font-sans">{contract.parking.number}</span>.</span>
+                  ) : (
+                    <span className="text-slate-500 font-light italic">• D'un commun accord entre les parties, cette transaction ne comprend aucune place de stationnement ou garage en sous-sol.</span>
+                  )}
+                </p>
+                <div className="h-[1px] bg-slate-200/50 my-2"></div>
+                <p>
+                  <span className="font-bold text-slate-900">Composition et divisions :</span> {contract.roomCount > 1 ? `${contract.roomCount} pièces` : "Une (01) seule pièce principale"}, cuisine aménagée, salle d'eau avec sanitaires, et volumes de dégagement conformément aux plans originaux de l'architecte.
+                </p>
+              </div>
+
+              <div className="space-y-2 mt-4">
+                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500">Adresse géographique globale :</h3>
+                <p className="text-slate-700 bg-slate-50/50 px-4 py-3 rounded-lg font-medium border-l border-slate-300">
+                  Le bien désigné ci-dessus fait partie de l'ensemble d'habitations implanté à l'adresse suivante : <span className="font-bold text-slate-900">{actualLocationFr}</span>.
+                </p>
+              </div>
+
+              {contract.notaryName && (
+                <div className="pt-4 border-t border-slate-100 text-slate-700">
+                  <p className="font-bold text-slate-900">Référence notariale officielle de raccordement :</p>
+                  <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">
+                    L'acte notarié de promesse de vente relatif à cette unité d'habitation a été dressé devant Maître <span className="font-bold text-slate-900">{actualNotaryName}</span> en date du <span className="font-bold font-sans">{contract.promiseOfSaleDate || contract.signingDate}</span>, auquel s'applique l'ensemble des clauses d'exécution du présent avenant.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="contract-footer z-10 w-full mt-auto">
+            <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+            <div className="flex justify-between items-center text-[9px] text-slate-400">
+              <span>CONFORT IMMOBILIERE • TECHNIQUE ET FINANCIER</span>
+              <span className="font-sans font-bold">Page 2 sur 7</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 3: Price & Payment */}
+        <div className="contract-page ltr font-sans relative flex flex-col bg-white select-none">
+          <div className="flex-grow py-2 z-10 relative space-y-6">
+            <div className="border-l-4 border-slate-900 pl-3">
+              <h2 className="text-lg font-black text-slate-900">II. STATUT FINANCIER ET MODALITES DE REGLEMENT</h2>
+            </div>
+
+            <div className="space-y-4 text-[12px] text-slate-700">
+              <p className="text-slate-800">
+                La tarification définitive, ferme et non modifiable pour l'achèvement complet et le transfert de propriété légale du bien est arrêtée d'un commun accord comme suit :
+              </p>
+
+              {/* Box Highlight with zero solid borders */}
+              <div className="bg-slate-50 p-6 rounded-2xl border-l-4 border-slate-900 space-y-2 text-left">
+                <span className="text-slate-500 block text-[10px] font-bold tracking-wider leading-none">MONTANT TOTAL DE L'ACQUISITION :</span>
+                <p className="text-2xl font-black text-slate-950 font-sans tracking-tight leading-none">
+                  {(contract.totalPrice + (contract.parking?.price || 0)).toLocaleString()} <span className="text-slate-500 text-sm font-black font-sans">DZD</span>
+                </p>
+                <div className="h-[1px] bg-slate-200 w-full my-2"></div>
+                <p className="text-[11px] text-slate-600 leading-relaxed pt-1">
+                  En toutes lettres : <span className="font-bold text-slate-900">({convertToFrenchWords(contract.totalPrice + (contract.parking?.price || 0))} Dinars Algériens)</span>.
+                </p>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500">Décomposition analytique des montants :</h3>
+                <ul className="space-y-2.5 list-none pl-3 text-[11px] text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <span className="text-slate-900 font-black shrink-0">•</span>
+                    <span>Valeur d'acquisition de l'appartement : <span className="font-sans font-bold text-slate-950">{contract.totalPrice.toLocaleString()} DZD</span> ({convertToFrenchWords(contract.totalPrice)} Dinars).</span>
+                  </li>
+                  {contract.parking?.exists && (
+                    <li className="flex items-start gap-2">
+                      <span className="text-slate-900 font-black shrink-0">•</span>
+                      <span>Valeur d'acquisition de la place de sous-sol : <span className="font-sans font-bold text-slate-950">{contract.parking.price.toLocaleString()} DZD</span> ({convertToFrenchWords(contract.parking.price)} Dinars) - Emplacement N° {contract.parking.number}.</span>
+                    </li>
+                  )}
+                  {contract.reservation?.exists ? (
+                    <li className="flex items-start gap-2">
+                      <span className="text-slate-900 font-black shrink-0">•</span>
+                      <span>Avance de réservation perçue : Reçue le <span className="font-sans font-bold text-slate-900">{contract.reservation.date}</span> d'un montant de <span className="font-sans font-bold text-slate-950">{contract.reservation.amount.toLocaleString()} DZD</span> ({convertToFrenchWords(contract.reservation.amount)} Dinars).</span>
+                    </li>
+                  ) : (
+                    <li className="flex items-start gap-2 text-slate-400">
+                      <span className="text-slate-300 font-bold shrink-0">•</span>
+                      <span>Aucun acompte lié à une réservation préalable n'intervient dans le cadre financier actuel.</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              <div className="p-4 bg-slate-50/50 rounded-xl space-y-1.5 text-[11px] border-l-2 border-slate-400">
+                {contract.reservation?.exists ? (
+                  <>
+                    <p>
+                      - Complément de versement effectué lors de la signature : <span className="font-bold font-sans text-slate-900">{contract.downPayment.toLocaleString()} DZD</span> ({convertToFrenchWords(contract.downPayment)} Dinars).
+                    </p>
+                    <p className="font-bold text-slate-900 mt-1">
+                      - Total cumulé des apports financiers perçus à ce jour : <span className="font-sans font-black text-slate-950">{totalReceivedReact.toLocaleString()} DZD</span> ({convertToFrenchWords(totalReceivedReact)} Dinars).
+                    </p>
+                  </>
+                ) : (
+                  <p className="font-bold text-slate-900">
+                    - Total cumulé des apports encaissés à ce jour : <span className="font-sans font-black text-slate-950">{totalReceivedReact.toLocaleString()} DZD</span> ({convertToFrenchWords(totalReceivedReact)} Dinars).
+                  </p>
+                )}
+
+                {(contract.totalPrice + (contract.parking?.price || 0)) > totalReceivedReact ? (
+                  <p className="text-slate-800 mt-2 font-medium">
+                    - Solde restant dû à s'acquitter : <span className="font-sans font-bold text-slate-950">{(contract.totalPrice + (contract.parking?.price || 0) - totalReceivedReact).toLocaleString()} DZD</span> ({convertToFrenchWords(remainingBalanceReact)} Dinars), exigible selon l'échéancier convenu.
+                  </p>
+                ) : (
+                  <p className="font-bold text-emerald-800 mt-2 text-center py-2 bg-emerald-50/50 rounded-lg">Le Promoteur certifie l'apport et l'encaissement du règlement complet de la transaction.</p>
+                )}
+
+                {contract.notaryFee && contract.notaryFee > 0 && (
+                  <p className="text-[10px] text-slate-500 mt-2 pt-1.5 border-t border-slate-200">
+                    - Honoraires d'actes d'écriture fixés à la charge exclusive de l'acquéreur : <span className="font-bold font-sans">{contract.notaryFee.toLocaleString()} DZD</span> ({convertToFrenchWords(contract.notaryFee)} Dinars).
+                  </p>
+                )}
+              </div>
+
+              <p className="text-[10px] text-slate-500 leading-relaxed text-left text-justify mt-4 border-t border-slate-100 pt-2 font-semibold">
+                Le prix global convenu est un prix ferme et définitif, libre de toute fluctuation d'index ou de coût de matériaux. L'Acquéreur supportera l'intégralité des frais légaux subséquents d'acte et taxes afférentes.
+              </p>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="contract-footer z-10 w-full mt-auto">
+            <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+            <div className="flex justify-between items-center text-[9px] text-slate-400">
+              <span>CONFORT IMMOBILIERE • TECHNIQUE ET FINANCIER</span>
+              <span className="font-sans font-bold">Page 3 sur 7</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 4: Delivery terms */}
+        <div className="contract-page ltr font-sans relative flex flex-col bg-white select-none">
+          <div className="flex-grow py-2 z-10 relative space-y-6">
+            <div className="border-l-4 border-slate-900 pl-3">
+              <h2 className="text-lg font-black text-slate-900">III. CONDITIONS ET DELAIS DE LIVRAISON</h2>
+            </div>
+
+            <div className="space-y-4 text-[12px] text-slate-700 leading-relaxed text-left text-justify">
+              <div className="space-y-2">
+                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-550">Délais d'octroi et de livraison contractuelle :</h3>
+                <p>
+                  Le Promoteur s'engage fermement à faire aboutir l'ensemble des travaux de construction du bien désigné et à procéder à la mise à disposition ainsi qu'à la remise physique et légale des clefs de l'appartement à l'Acquéreur dans un délai maximum et non prolongeable estimé à <span className="font-bold text-slate-950">{actualDuration}</span>. Cette remise de clefs donnera obligatoirement lieu à la rédaction d'un procès-verbal contradictoire de livraison signé par les deux parties.
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-550">Degré de finition et prestations techniques complémentaires :</h3>
+                <p>
+                  Le Promoteur garantit que l'appartement faisant l'objet du présent avenant sera livré à l'Acquéreur à l'état de <span className="font-bold text-slate-950">({contract.isFinished ? "Fini" : "Semi-fini"})</span>, élaboré dans le respect scrupuleux des normes algériennes de construction en vigueur. Les aménagements intégrés par le promoteur comprennent : l'ascenseur en fonctionnement continu, le raccordement électrique principal, la bâche d'eau commune de grand volume et un dispositif fermé de vidéosurveillance.
+                </p>
+
+                {!contract.isFinished && (
+                  <p className="p-4 bg-slate-50 rounded-xl text-[11px] border-l-2 border-amber-600 text-slate-700 leading-relaxed">
+                    <span className="font-bold text-slate-900 block mb-1">Engagement technique spécial de l'Acquéreur (Semi-fini) :</span>
+                    À sa demande expresse, l'Acquéreur accepte de prendre le bien à l'état "semi-fini". Il s'interdit formellement d'exécuter des modifications structurelles majeures touchant les colonnes porteuses, les façades d'harmonie ou les parties de copropriété. L'ensemble des travaux intérieurs de revêtements de sols, peintures et ajustements sanitaires fins devront être finalisés par ses propres soins exclusifs et à ses frais dans un délai de six (06) mois à compter de la remise des clefs.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-550">Vigilance technique et visite contradictoire :</h3>
+                <p>
+                  L'Acquéreur atteste sous sa propre responsabilité avoir inspecté en personne le site de construction à plusieurs reprises, en être parfaitement au fait, et avoir examiné avec diligence les plans de raccordement technique, de distribution structurelle et de l'implantation géographique, pour lesquels il formule son consentement absolu sans aucune revendication à l'égard de la disposition des volumes.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="contract-footer z-10 w-full mt-auto">
+            <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+            <div className="flex justify-between items-center text-[9px] text-slate-400">
+              <span>CONFORT IMMOBILIERE • TECHNIQUE ET FINANCIER</span>
+              <span className="font-sans font-bold">Page 4 sur 7</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 5: Obligations Part 1 */}
+        <div className="contract-page ltr font-sans relative flex flex-col bg-white select-none">
+          <div className="flex-grow py-2 z-10 relative space-y-4">
+            <div className="border-l-4 border-slate-900 pl-3">
+              <h2 className="text-lg font-black text-slate-900">IV. CLAUSES ET RÈGLEMENTS DE COHABITATION (PARTIE 1)</h2>
+            </div>
+
+            <div className="space-y-4 text-[11px]">
+              {groupedClauses.general.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-bold text-slate-950 text-xs uppercase tracking-wider text-slate-500 border-l-2 border-slate-900 pl-2">1. Obligations générales mutuelles</h3>
+                  <ul className="space-y-1.5 pl-1 text-slate-700">
+                    {groupedClauses.general.map((clause: string, idx: number) => (
+                      <li key={idx} className="flex gap-2 text-justify leading-relaxed">
+                        <span className="font-bold shrink-0 text-slate-900">•</span>
+                        <span>{clause}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {groupedClauses.termination.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-bold text-slate-950 text-xs uppercase tracking-wider text-slate-500 border-l-2 border-slate-900 pl-2">2. Conditions de résiliation et désistement</h3>
+                  <ul className="space-y-1.5 pl-1 text-slate-700">
+                    {groupedClauses.termination.map((clause: string, idx: number) => (
+                      <li key={idx} className="flex gap-2 text-justify leading-relaxed">
+                        <span className="font-bold shrink-0 text-slate-900">•</span>
+                        <span>{clause}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {groupedClauses.halting.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-bold text-slate-950 text-xs uppercase tracking-wider text-slate-500 border-l-2 border-slate-900 pl-2">3. Arrêt ou interruption des travaux</h3>
+                  <ul className="space-y-1.5 pl-1 text-slate-700">
+                    {groupedClauses.halting.map((clause: string, idx: number) => (
+                      <li key={idx} className="flex gap-2 text-justify leading-relaxed">
+                        <span className="font-bold shrink-0 text-slate-900">•</span>
+                        <span>{clause}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="contract-footer z-10 w-full mt-auto">
+            <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+            <div className="flex justify-between items-center text-[9px] text-slate-400">
+              <span>CONFORT IMMOBILIERE • TECHNIQUE ET FINANCIER</span>
+              <span className="font-sans font-bold">Page 5 sur 7</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 6: Obligations Part 2 & Parts */}
+        <div className="contract-page ltr font-sans relative flex flex-col bg-white select-none">
+          <div className="flex-grow py-2 z-10 relative flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="border-l-4 border-slate-900 pl-3">
+                <h2 className="text-lg font-black text-slate-900">SUITE DES DISPOSITIONS ET DOCUMENTATION COMPLÉMENTAIRE</h2>
+              </div>
+
+              <div className="space-y-4 text-[11px]">
+                {groupedClauses.assignment.length > 0 && (
+                  <div className="space-y-1.5">
+                    <h3 className="font-bold text-slate-950 text-xs uppercase tracking-wider text-slate-500 border-l-2 border-slate-900 pl-2">4. Droits de propriété et transfert légal</h3>
+                    <ul className="space-y-1.5 pl-1 text-slate-700">
+                      {groupedClauses.assignment.map((clause: string, idx: number) => (
+                        <li key={idx} className="flex gap-2 text-justify leading-relaxed">
+                          <span className="font-bold shrink-0 text-slate-900">•</span>
+                          <span>{clause}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {groupedClauses.legalStatus.length > 0 && (
+                  <div className="space-y-1.5">
+                    <h3 className="font-bold text-slate-950 text-xs uppercase tracking-wider text-slate-500 border-l-2 border-slate-900 pl-2">5. Statut juridique de la promotion immobilière</h3>
+                    <ul className="space-y-1.5 pl-1 text-slate-700">
+                      {groupedClauses.legalStatus.map((clause: string, idx: number) => (
+                        <li key={idx} className="flex gap-2 text-justify leading-relaxed">
+                          <span className="font-bold shrink-0 text-slate-900">•</span>
+                          <span>{clause}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {groupedClauses.taxes.length > 0 && (
+                  <div className="space-y-1.5">
+                    <h3 className="font-bold text-slate-950 text-xs uppercase tracking-wider text-slate-500 border-l-2 border-slate-900 pl-2">6. Enregistrements, Fiscalité et Taxes</h3>
+                    <ul className="space-y-1.5 pl-1 text-slate-700">
+                      {groupedClauses.taxes.map((clause: string, idx: number) => (
+                        <li key={idx} className="flex gap-2 text-justify leading-relaxed">
+                          <span className="font-bold shrink-0 text-slate-900">•</span>
+                          <span>{clause}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {groupedClauses.disputes.length > 0 && (
+                  <div className="space-y-1.5">
+                    <h3 className="font-bold text-slate-950 text-xs uppercase tracking-wider text-slate-500 border-l-2 border-slate-900 pl-2">7. Règlement des contestations et juridictions compétentes</h3>
+                    <ul className="space-y-1.5 pl-1 text-slate-700">
+                      {groupedClauses.disputes.map((clause: string, idx: number) => (
+                        <li key={idx} className="flex gap-2 text-justify leading-relaxed">
+                          <span className="font-bold shrink-0 text-slate-900">•</span>
+                          <span>{clause}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-4 border-t border-slate-100">
+              <p className="leading-relaxed text-left text-justify text-[10px] text-slate-500 font-medium">
+                Les soussignés acceptent expressément toutes les clauses d'arbitrage contenues au sein du contrat original de promesse de vente, auquel s'applique intrinsèquement le présent accord additionnel et complémentaire.
+              </p>
+
+              <div className="p-3.5 bg-slate-50 rounded-xl space-y-1 border-l-2 border-slate-400 text-[10px] text-slate-750">
+                <p className="font-bold text-slate-900 uppercase tracking-wider mb-1">Dispositions graphiques indispensables jointes :</p>
+                <ul className="space-y-0.5 list-none pl-2">
+                  <li className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">•</span>
+                    <span>Plan de masse certifié conforme de l'immeuble.</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">•</span>
+                    <span>Plan technique d'architecture intérieur fixant les séparations de l'appartement.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="contract-footer z-10 w-full mt-auto">
+            <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+            <div className="flex justify-between items-center text-[9px] text-slate-400">
+              <span>CONFORT IMMOBILIERE • TECHNIQUE ET FINANCIER</span>
+              <span className="font-sans font-bold">Page 6 sur 7</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PAGE 7: Symmetrical Signatures */}
+        <div className="contract-page ltr font-sans relative flex flex-col bg-white select-none">
+          <div className="flex flex-col flex-grow justify-center items-center py-6 space-y-10 z-10 relative">
+            <div className="text-center w-full mb-4">
+              <p className="text-sm font-medium text-slate-750">
+                Fait de plein droit en toute probité à Bordj El Kiffan, le : <span className="font-sans font-black text-slate-950 bg-slate-50 px-3.5 py-1.5 rounded border border-slate-150">{contract.signingDate}</span>
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-12 text-center text-[12px] font-bold w-full max-w-xl mx-auto px-4">
+              <div className="space-y-4">
+                <div className="h-14 flex flex-col justify-between">
+                  <p className="text-slate-950 font-black">Signature et Empreinte de l'Acquéreur</p>
+                  <p className="text-[11px] font-bold mt-1 text-slate-600">
+                    {prefixGenderWord} {actualCustomerName}
+                  </p>
+                </div>
+                <div className="h-32 border border-dashed border-slate-200 rounded-2xl flex items-center justify-center text-[10px] font-normal bg-slate-50 text-slate-400">
+                  (Empreinte digitale réglementaire)
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="h-14 flex flex-col justify-between">
+                  <p className="text-slate-950 font-black">Pour Confort Services Immobiliers</p>
+                  <p className="text-[11px] font-bold mt-1 text-slate-650">Le Mandant Gérant : M. NEJJAR ABDELGHANI</p>
+                </div>
+                <div className="h-32 border border-dashed border-slate-200 rounded-2xl flex items-center justify-center text-[10px] font-normal bg-slate-50 text-slate-400">
+                  (Signature officielle et Griffe de l'Entreprise)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="contract-footer z-10 w-full mt-auto">
+            <div className="h-[2px] bg-slate-100 w-full mb-2"></div>
+            <div className="flex justify-between items-center text-[9px] text-slate-400">
+              <span>CONFORT IMMOBILIERE • TECHNIQUE ET FINANCIER</span>
+              <span className="font-sans font-bold">Page 7 sur 7</span>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       {/* PAGE 1: Title Page */}
@@ -138,6 +666,25 @@ export default function FrenchContractPages({
               <br />
               <span className="text-lg md:text-xl font-normal opacity-85">(CONVENTION DE RÉSERVATION D’UN BIEN EN L'ÉTAT FUTUR D’ACHÈVEMENT - VEFA)</span>
             </h1>
+
+            {refData && (
+              <div className="mt-3 text-center">
+                <span className="font-mono text-xl tracking-widest select-all inline-flex items-center justify-center">
+                  <span className={`ref-segment-proj ${isRoyal ? 'text-emerald-800 font-black' : 'text-slate-900 font-black'}`}>
+                    {refData.projectCode}
+                  </span>
+                  <span className="ref-segment-client font-medium text-amber-600 dark:text-amber-400">
+                    {refData.manualClientNum}
+                  </span>
+                  <span className="ref-segment-date font-extralight text-slate-400 dark:text-slate-500">
+                    {refData.dateCode}
+                  </span>
+                  <span className="ref-segment-hash font-black text-blue-700 dark:text-blue-400">
+                    {refData.hash}
+                  </span>
+                </span>
+              </div>
+            )}
           </div>
 
           <div className={`w-full max-w-xl p-8 text-center my-6 relative overflow-hidden ${
