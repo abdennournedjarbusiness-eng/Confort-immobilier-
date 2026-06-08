@@ -104,3 +104,32 @@ export interface TemplateConfig {
   companyHeader: string;
   lastUpdated: any;
 }
+
+export interface PaymentInstallment {
+  id?: string;
+  contractId?: string; // empty if Case B (manual)
+  customerName: string;
+  idType: string;
+  idNumber: string;
+  idIssueDate: string;
+  idIssuePlace?: string;
+  proxyName?: string;
+  proxyIdNumber?: string;
+  proxyIdIssueDate?: string;
+  proxyIdIssuePlace?: string;
+  projectName: string;
+  apartmentType: string;
+  floor: string;
+  building: string;
+  area: string;
+  totalPrice: number;
+  previousPaid: number;
+  currentPayment: number;
+  currentPaymentArabic: string;
+  paymentNature: string; // e.g. "القسط الأول" or "الدفعة الخامسة"
+  paymentMethod: "نقداً" | "صك بنكي" | "تحويل بريدي/بنكي" | "دفع إلكتروني" | string;
+  paymentDate: string;
+  collectionReceiptNo?: string;
+  createdAt: any;
+  userId: string;
+}

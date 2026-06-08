@@ -2,12 +2,13 @@ import { useState, useEffect, FormEvent } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from "react-router-dom";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, signInAnonymous, verifySerial, addSerial, signOut as firebaseSignOut } from "./firebase";
-import { LogIn, LogOut, FileText, PlusCircle, Settings, LayoutDashboard, Menu, X, Key as KeyIcon, Loader2, Building2, UserCircle2 } from "lucide-react";
+import { LogIn, LogOut, FileText, PlusCircle, Settings, LayoutDashboard, Menu, X, Key as KeyIcon, Loader2, Building2, UserCircle2, Receipt } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import logo from "./assets/images/official_logo_burgundy_1779040261704.png";
 
 import Dashboard from "./components/Dashboard";
 import ContractForm from "./components/ContractForm";
+import InstallmentsManager from "./components/InstallmentsManager";
 import AdminPanel from "./components/AdminPanel";
 import ContractPrint from "./components/ContractPrint";
 import ProjectManager from "./components/ProjectManager";
@@ -170,6 +171,9 @@ export default function App() {
                 <Link to="/new" className="text-slate-400 hover:text-brand-accent font-medium flex items-center gap-1 transition-colors font-arabic">
                   <PlusCircle className="w-4 h-4" /> عقد جديد
                 </Link>
+                <Link to="/installments" className="text-slate-400 hover:text-brand-accent font-medium flex items-center gap-1 transition-colors font-arabic">
+                  <Receipt className="w-4 h-4" /> الأقساط والوصولات
+                </Link>
                 <Link to="/projects" className="text-slate-400 hover:text-brand-accent font-medium flex items-center gap-1 transition-colors font-arabic">
                   <Building2 className="w-4 h-4" /> المشاريع
                 </Link>
@@ -224,6 +228,13 @@ export default function App() {
                     <PlusCircle className="w-5 h-5" /> إضافة عقد
                   </Link>
                   <Link
+                    to="/installments"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-slate-400 hover:bg-brand-accent/10 hover:text-brand-accent transition-all font-arabic"
+                  >
+                    <Receipt className="w-5 h-5" /> إدارة الأقساط والوصولات
+                  </Link>
+                  <Link
                     to="/projects"
                     onClick={() => setIsMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-slate-400 hover:bg-brand-accent/10 hover:text-brand-accent transition-all font-arabic"
@@ -266,6 +277,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard user={user} />} />
             <Route path="/new" element={<ContractForm user={user} />} />
+            <Route path="/installments" element={<InstallmentsManager user={user} />} />
             <Route path="/projects" element={<ProjectManager />} />
             <Route path="/notaries" element={<NotaryManager />} />
             <Route path="/edit/:id" element={<ContractForm user={user} />} />

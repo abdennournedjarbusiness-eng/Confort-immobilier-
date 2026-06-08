@@ -90,6 +90,38 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "gender", "userId"]
+    },
+    "PaymentInstallment": {
+      "title": "PaymentInstallment",
+      "description": "Represents an installment payment or financial receipt.",
+      "type": "object",
+      "properties": {
+        "contractId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "idType": { "type": "string" },
+        "idNumber": { "type": "string" },
+        "idIssueDate": { "type": "string" },
+        "idIssuePlace": { "type": "string" },
+        "proxyName": { "type": "string" },
+        "proxyIdNumber": { "type": "string" },
+        "proxyIdIssueDate": { "type": "string" },
+        "proxyIdIssuePlace": { "type": "string" },
+        "projectName": { "type": "string" },
+        "apartmentType": { "type": "string" },
+        "floor": { "type": "string" },
+        "building": { "type": "string" },
+        "area": { "type": "string" },
+        "totalPrice": { "type": "number" },
+        "previousPaid": { "type": "number" },
+        "currentPayment": { "type": "number" },
+        "currentPaymentArabic": { "type": "string" },
+        "paymentNature": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "paymentDate": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["customerName", "projectName", "totalPrice", "currentPayment", "userId"]
     }
   },
   "firestore": {
@@ -104,6 +136,10 @@
     "notaries": {
       "schema": "Notary",
       "description": "Collection of managed notaries."
+    },
+    "payments": {
+      "schema": "PaymentInstallment",
+      "description": "Collection of recorded installment payments and receipts."
     },
     "config": {
       "schema": "TemplateConfig",
