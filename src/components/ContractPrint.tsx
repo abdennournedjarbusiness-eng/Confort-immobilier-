@@ -13,6 +13,7 @@ import { convertToFrenchWords, convertFloorToFrenchOrdinal } from "../lib/number
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import FrenchContractPages from "./FrenchContractPages";
+import AnnexPages from "./AnnexPages";
 import { generateReference } from "../lib/referenceGenerator";
 
 export interface GroupedClauses {
@@ -92,6 +93,11 @@ export function categorizeClauses(clausesList: string[]): GroupedClauses {
     const text = clause.trim();
     if (!text) return;
 
+    // Skip the Page 3 price text completely from dynamic clauses to prevent any duplication on other pages
+    if (text.includes("ثمن البيع الإجمالي قطعي") || text.includes("تُوزع باقي المصاريف") || text.includes("بند \"الضرائب والرسوم\"")) {
+      return;
+    }
+
     // 1. Dispute resolution and amendments
     if (text.includes("نزاع") || text.includes("ودياً") || text.includes("المحكمة") || text.includes("القانون الجزائري") || text.includes("تعديل أو تغيير") || text.includes("ملحق عقد")) {
       groups.disputes.push(text);
@@ -122,8 +128,14 @@ export function categorizeClauses(clausesList: string[]): GroupedClauses {
     }
   });
 
-  if (groups.taxes.length === 0) {
-    groups.taxes.push("يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.");
+  if (groups.taxes.length === 0 || groups.taxes.some(t => t.includes("ثمن البيع") || t.includes("تُوزع باقي"))) {
+    groups.taxes = [
+      "يتفق الطرفان صراحة على توزيع كافة المصاريف، الرسوم، والضرائب المترتبة على هذا العقد ونقل الملكية وتشييد المشروع وفق الأحكام التالية:",
+      "أتعاب التوثيق: يتحمل الطرفان (المرقي والمشتري) أتعاب الموثق المتعلقة بتحرير هذا العقد بالتساوي بينهما، أو بنسب متفاوتة وفقاً لما يحدده الملحق المرفق بهذا العقد والذي يشكل جزءاً لا يتجزأ منه.",
+      "حقوق التسجيل والإشهار: ينفرد المشتري وحده بتحمل كامل حقوق التسجيل ومصاريف الإشهار العقاري لدى المحافظة العقارية المختصة إقليمياً، بالإضافة إلى أي مصاريف إدارية لازمة لإتمام إجراءات الشهر العقاري ونقل الملكية باسمه.",
+      "تسيير الأجزاء المشتركة: يلتزم المشتري منفرداً وبشكل قطعي بتحمل تكاليف وأعباء تسيير وصيانة الأجزاء المشتركة للعقار، وذلك ابتداءً من تاريخ الاستلام الفعلي للعقار أو حيازة المفاتيح.",
+      "الضرائب المهنية للمرقي: يتكفل المرقي العقاري حصراً، وبصفته المهنية، بكافة الضرائب والرسوم القانونية المترتبة على عاتقه والناتجة عن نشاط الترقية العقارية وتشييد المشروع، وتبقى على عاتقه حتى تاريخ التسليم الفعلي والنهائي للعقار للمشتري."
+    ];
   }
 
   return groups;
@@ -138,12 +150,25 @@ export default function ContractPrint() {
   const [loading, setLoading] = useState(true);
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<"burgundy" | "royal" | "v3">("v3");
+  const [selectedTemplate, setSelectedTemplate] = useState<"burgundy" | "royal" | "v3">("royal");
   const isRoyal = selectedTemplate === "royal";
   const [language, setLanguage] = useState<"ar" | "fr">("ar");
 
   const [projectCodeInput, setProjectCodeInput] = useState("CNF");
   const [clientNumInput, setClientNumInput] = useState("101");
+
+  // Annex-specific dynamic settings
+  const [showAnnex, setShowAnnex] = useState(false);
+  const [contractType, setContractType] = useState<string>("الوعد بالبيع");
+  const [customContractType, setCustomContractType] = useState<string>("");
+  const [annexFormat, setAnnexFormat] = useState<"percent" | "lump">("percent");
+  const [promoterPercent, setPromoterPercent] = useState<number>(50);
+  const [buyerPercent, setBuyerPercent] = useState<number>(50);
+  const [lumpSumAmount, setLumpSumAmount] = useState<number>(100000);
+  const [lumpSumWords, setLumpSumWords] = useState<string>("مائة ألف دينار جزائري");
+  const [customClauseNumber, setCustomClauseNumber] = useState<string>("السادس");
+  const [customAnnexDate, setCustomAnnexDate] = useState<string>("");
+  const [customAnnexPlace, setCustomAnnexPlace] = useState<string>("الجزائر العاصمة");
 
   const refData = contract ? generateReference(
     projectCodeInput,
@@ -402,6 +427,9 @@ export default function ContractPrint() {
         }
       }
       setClientNumInput(guessedClientNum);
+      if (contract.signingDate) {
+        setCustomAnnexDate(contract.signingDate);
+      }
     }
   }, [contract]);
 
@@ -555,7 +583,7 @@ export default function ContractPrint() {
     if (clause.includes("الأرض موضوع") || (clause.includes("عقد شراكة") && clause.includes("الأرض"))) {
       text = getPartnershipClauseText();
     } else if (clause.includes("يتحمل المشتري") && clause.includes("أتعاب التوثيق")) {
-      text = "يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.";
+      text = "ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة، ويمثل القيمة المادية للعقار حصراً. تُوزع باقي المصاريف والأتعاب (كالتوثيق، التسجيل، الإشهار، وتسيير الأجزاء المشتركة) بين الطرفين وفقاً لما هو مفصل في بند \"الضرائب والرسوم\".";
     }
     return cleanClauseText(normalizeClauseText(text));
   });
@@ -638,7 +666,7 @@ export default function ContractPrint() {
             color: #000000 !important;
           }
           .contract-page .ref-segment-proj {
-            color: ${isRoyal ? '#065f46' : '#1e293b'} !important;
+            color: ${isRoyal ? '#8C1932' : '#1e293b'} !important;
             font-weight: 900 !important;
             letter-spacing: 0.05em !important;
           }
@@ -818,34 +846,34 @@ export default function ContractPrint() {
             background-color: #991b1b !important;
           }
           .bg-emerald-800 {
-            background-color: #065f46 !important;
+            background-color: #8C1932 !important;
           }
           .border-emerald-800 {
-            border-color: #065f46 !important;
+            border-color: #8C1932 !important;
           }
           .border-emerald-800\/80 {
-            border-color: rgba(6, 95, 70, 0.8) !important;
+            border-color: rgba(140, 25, 50, 0.8) !important;
           }
           .border-emerald-800\/30 {
-            border-color: rgba(6, 95, 70, 0.3) !important;
+            border-color: rgba(140, 25, 50, 0.3) !important;
           }
           .border-emerald-800\/10 {
-            border-color: rgba(6, 95, 70, 0.1) !important;
+            border-color: rgba(140, 25, 50, 0.1) !important;
           }
           .border-emerald-905\/20, .border-emerald-900\/20 {
-            border-color: rgba(2, 44, 34, 0.2) !important;
+            border-color: rgba(140, 25, 50, 0.2) !important;
           }
           .text-emerald-800 {
-            color: #065f46 !important;
+            color: #8C1932 !important;
           }
           .text-emerald-900 {
-            color: #064e3b !important;
+            color: #8C1932 !important;
           }
           .text-emerald-950 {
-            color: #022c22 !important;
+            color: #8C1932 !important;
           }
           .bg-emerald-50\/20, .bg-emerald-50\/10, .bg-emerald-50\/5 {
-            background-color: rgba(6, 95, 70, 0.05) !important;
+            background-color: rgba(140, 25, 50, 0.05) !important;
           }
           .border-amber-600\/30, .border-amber-600\/20 {
             border-color: rgba(217, 119, 6, 0.3) !important;
@@ -1075,7 +1103,7 @@ export default function ContractPrint() {
               </div>
 
               <div class="mt-8 border-2 border-red-800 bg-red-50/5 p-6 rounded-2xl text-justify text-base leading-relaxed text-red-100 font-bold">
-               يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.
+               ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة، ويمثل القيمة المادية للعقار حصراً. تُوزع باقي المصاريف والأتعاب (كالتوثيق، التسجيل، الإشهار، وتسيير الأجزاء المشتركة) بين الطرفين وفقاً لما هو مفصل في بند "الضرائب والرسوم".
               </div>
             </div>
           </div>
@@ -1258,7 +1286,7 @@ export default function ContractPrint() {
   const downloadWordFr = async () => {
     if (!contract) return;
     
-    const wordColor = selectedTemplate === "royal" ? "065F46" : "991B1B";
+    const wordColor = selectedTemplate === "royal" ? "8C1932" : "991B1B";
     const totalReceivedVal = contract.reservation?.exists ? (contract.reservation.amount + contract.downPayment) : contract.downPayment;
     const remainingBalanceVal = (contract.totalPrice + (contract.parking?.price || 0)) - totalReceivedVal;
     
@@ -1542,7 +1570,7 @@ export default function ContractPrint() {
             children: [
               remainingBalanceVal > 0 
                 ? new TextRun({ text: `• SOLDE RESTANT DÛ EXIGIBLE: ${remainingBalanceVal.toLocaleString()} DZD (${convertToFrenchWords(remainingBalanceVal)} DZD), à régulariser selon le plan financier convenu.`, bold: true, color: "991B1B" })
-                : new TextRun({ text: "• Le montant d’acquisition de l'unité immobilière a été soldé intégralement.", bold: true, color: "065F46" }),
+                : new TextRun({ text: "• Le montant d’acquisition de l'unité immobilière a été soldé intégralement.", bold: true, color: "8C1932" }),
             ],
             ...ltrLeft,
             spacing: { before: 100 },
@@ -1723,7 +1751,7 @@ export default function ContractPrint() {
           new Paragraph({
             children: [
               new TextRun({ text: "En date du: ", bold: true }),
-              new TextRun({ text: contract.signingDate, bold: true, color: "065F46" }),
+              new TextRun({ text: contract.signingDate, bold: true, color: "8C1932" }),
             ],
             ...ltrLeft,
             spacing: { before: 100 },
@@ -1782,14 +1810,403 @@ export default function ContractPrint() {
     saveAs(blob, `Avenant_${contract.customerName}.docx`);
   };
 
+  const downloadAnnexWordAr = async () => {
+    if (!contract) return;
+    
+    const wordColor = selectedTemplate === "royal" ? "0F766E" : selectedTemplate === "burgundy" ? "8C1932" : "1E293B";
+    const arRight = { alignment: AlignmentType.RIGHT, rtl: true };
+    const arCenter = { alignment: AlignmentType.CENTER, rtl: true };
+
+    const actualContractType = contractType === "custom" ? customContractType : contractType;
+
+    const formulaText = annexFormat === "percent" 
+      ? `يتفق الطرفان على أن يتحمل الطرف الأول (المرقي العقاري) نسبة %${promoterPercent} من إجمالي أتعاب التوثيق، في حين يتحمل الطرف الثاني (المشتري) النسبة المتبقية والمقدرة بـ %${buyerPercent}.`
+      : `يتفق الطرفان على أن يساهم الطرف الأول (المرقي العقاري) بمبلغ مقطوع قدره ${lumpSumAmount.toLocaleString()} دج (${lumpSumWords}) من أتعاب التوثيق، ويتحمل الطرف الثاني (المشتري) باقي التكلفة الإجمالية للأتعاب مهما بلغ قدرها النهائي.`;
+
+    const docObj = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({ text: "مؤسسة كنفور للخدمات العقارية", bold: true, size: 28 }),
+            ],
+            ...arRight,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "CONFORT IMMOBILIERE", bold: true, size: 20 }),
+            ],
+            ...arRight,
+          }),
+          new Paragraph({ text: "", spacing: { before: 400 } }),
+          
+          new Paragraph({
+            children: [
+              new TextRun({ text: "ملحق رقم (01)", bold: true, size: 36, color: wordColor }),
+            ],
+            ...arCenter,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `لعقد [نوع العقد: ${actualContractType}] المتعلق بتحديد نسب تحمل أتعاب التوثيق`, bold: true, size: 28 }),
+            ],
+            ...arCenter,
+            spacing: { after: 600 },
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "بين الطرفين المتعاقدين:", bold: true, size: 24, underline: {} }),
+            ],
+            ...arRight,
+            spacing: { after: 200 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "الطرف الأول: ", bold: true }),
+              new TextRun({ text: "مؤسسة كنفور للخدمات العقارية، ممثلة قانوناً بمسيرها السيد نجار عبد الغني، وبصفتها (المرقي العقاري)." })
+            ],
+            ...arRight,
+            spacing: { after: 100 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "الطرف الثاني: ", bold: true }),
+              new TextRun({ text: `${contract.gender}: ${contract.customerName}، وبصفته(ا) (المشتري).` })
+            ],
+            ...arRight,
+            spacing: { after: 400 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "تمهيد:", bold: true, size: 24, underline: {} }),
+            ],
+            ...arRight,
+            spacing: { after: 200 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: `بناءً على البند ${customClauseNumber} من عقد البيع المبرم بين الطرفين بتاريخ ${contract.signingDate}، والذي ينص على تحمل الطرفين لأتعاب التوثيق بنسب متفاوتة تُحدد بموجب ملحق، فقد تم الاتفاق صراحة على ما يلي:` })
+            ],
+            ...arRight,
+            spacing: { after: 400 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "المادة الأولى: موضوع الملحق", bold: true, size: 24, color: wordColor }),
+            ],
+            ...arRight,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "يُحدد هذا الملحق حصراً نسب وطريقة التكفل بأتعاب الموثق الناتجة عن تحرير العقد الأصلي المذكور أعلاه." })
+            ],
+            ...arRight,
+            spacing: { after: 300 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "المادة الثانية: توزيع الأتعاب", bold: true, size: 24, color: wordColor }),
+            ],
+            ...arRight,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: formulaText })
+            ],
+            ...arRight,
+            spacing: { after: 300 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "المادة الثالثة: القوة القانونية", bold: true, size: 24, color: wordColor }),
+            ],
+            ...arRight,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "تبقى باقي بنود العقد الأصلي سارية المفعول دون أي تعديل أو إسقاط، ويعتبر هذا الملحق جزءاً لا يتجزأ من العقد الأصلي ويأخذ نفس قوته القانونية الملزمة." })
+            ],
+            ...arRight,
+            spacing: { after: 300 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "المادة الرابعة: التحرير", bold: true, size: 24, color: wordColor }),
+            ],
+            ...arRight,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `حُرر هذا الملحق في ${customAnnexPlace} بتاريخ ${customAnnexDate || contract.signingDate}، من نسختين أصليتين، سُلمت لكل طرف نسخة للعمل بها عند الاقتضاء.` })
+            ],
+            ...arRight,
+            spacing: { after: 600 }
+          }),
+
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: {
+               top: { style: BorderStyle.NONE },
+               bottom: { style: BorderStyle.NONE },
+               left: { style: BorderStyle.NONE },
+               right: { style: BorderStyle.NONE },
+               insideHorizontal: { style: BorderStyle.NONE },
+               insideVertical: { style: BorderStyle.NONE },
+            },
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [
+                      new Paragraph({ children: [new TextRun({ text: "توقيع الطرف الثاني (المشتري)", bold: true })], alignment: AlignmentType.CENTER }),
+                      new Paragraph({ text: "", spacing: { before: 1000 } }),
+                    ],
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({ children: [new TextRun({ text: "توقيع الطرف الأول (المرقي العقاري)", bold: true })], alignment: AlignmentType.CENTER }),
+                      new Paragraph({ text: "", spacing: { before: 1000 } }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }],
+    });
+
+    const blob = await Packer.toBlob(docObj);
+    saveAs(blob, `ملحق_أتعاب_التوثيق_${contract.customerName}.docx`);
+  };
+
+  const downloadAnnexWordFr = async () => {
+    if (!contract) return;
+    
+    const wordColor = selectedTemplate === "royal" ? "0F766E" : selectedTemplate === "burgundy" ? "8C1932" : "1E293B";
+    const ltrLeft = { alignment: AlignmentType.LEFT };
+    const ltrCenter = { alignment: AlignmentType.CENTER };
+
+    const actualContractType = contractType === "custom" 
+      ? customContractType 
+      : contractType === "بيع بناء على التصاميم" 
+        ? "Vente en l'État Futur d'Achèvement (V.E.F.A)" 
+        : contractType === "الوعد بالبيع" 
+          ? "Promesse de vente" 
+          : "Vente immobilière";
+
+    const formulaText = annexFormat === "percent"
+      ? `Les parties conviennent que la Première partie (Le Promoteur) supportera un taux de ${promoterPercent}% des honoraires de notaire globaux engendrés par la rédaction du présent acte originel, tandis que la Seconde partie (L'Acquéreur) supportera la quote-part restante estimée à ${buyerPercent}%.`
+      : `Les parties conviennent que la Première partie (Le Promoteur) participera à hauteur d'une contribution forfaitaire fixe de ${lumpSumAmount.toLocaleString()} DZD (${convertToFrenchWords(lumpSumAmount)} Dinars Algériens) aux honoraires de notaire, tandis que la Seconde partie (L'Acquéreur) supportera l'intégralité du reliquat restant, peu importe son montant total final.`;
+
+    const docObj = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({ text: "E.S.P CONFORT SERVICES IMMOBILIERS", bold: true, size: 24 }),
+            ],
+            ...ltrLeft,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "CONFORT IMMOBILIERE BEK", bold: true, size: 16 }),
+            ],
+            ...ltrLeft,
+          }),
+          new Paragraph({ text: "", spacing: { before: 400 } }),
+          
+          new Paragraph({
+            children: [
+              new TextRun({ text: "AVENANT N° 01", bold: true, size: 32, color: wordColor }),
+            ],
+            ...ltrCenter,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `AU CONTRAT DE [TYPE: ${actualContractType}]`, bold: true, size: 24, color: wordColor }),
+            ],
+            ...ltrCenter,
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Relatif à la répartition conventionnelle des honoraires de rédaction d'actes de notaire", bold: true, size: 20 }),
+            ],
+            ...ltrCenter,
+            spacing: { after: 600 },
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Entre les soussignés d'accord commun :", bold: true, size: 22, underline: {} }),
+            ],
+            ...ltrLeft,
+            spacing: { after: 200 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "La Première Partie (Le Promoteur): ", bold: true }),
+              new TextRun({ text: "E.S.P Confort Services Immobiliers, représentée légalement par son Gérant, M. Nadjar Abdelghani." })
+            ],
+            ...ltrLeft,
+            spacing: { after: 100 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "La Seconde Partie (L'Acquéreur): ", bold: true }),
+              new TextRun({ text: `${contract.gender === 'السيد' ? 'M.' : 'Mme'}: ${contract.customerName}.` })
+            ],
+            ...ltrLeft,
+            spacing: { after: 400 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Préambule :", bold: true, size: 22, underline: {} }),
+            ],
+            ...ltrLeft,
+            spacing: { after: 200 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: `Vu la clause de répartition des charges stipulée au contrat de vente principal conclu entre les parties en date du ${contract.signingDate}, prévoyant la répartition négociable des honoraires de notaire par voie d'avenant particulier joint, il a été expressément convenu de ce qui suit :` })
+            ],
+            ...ltrLeft,
+            spacing: { after: 400 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Article 1 : Objet de l'Avenant", bold: true, size: 22, color: wordColor }),
+            ],
+            ...ltrLeft,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Le présent avenant a pour objet exclusif de définir de manière conventionnelle les proportions et modalités de prise en charge des honoraires de l'officier public (Le Notaire) découlant de la passation de l'acte d'acquisition originel." })
+            ],
+            ...ltrLeft,
+            spacing: { after: 300 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Article 2 : Clé de répartition des honoraires", bold: true, size: 22, color: wordColor }),
+            ],
+            ...ltrLeft,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: formulaText })
+            ],
+            ...ltrLeft,
+            spacing: { after: 300 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Article 3 : Clause de sauvegarde juridique", bold: true, size: 22, color: wordColor }),
+            ],
+            ...ltrLeft,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Toutes les autres clauses, redevances, garanties et conditions énoncées au contrat de vente initial principal demeurent inchangées, stables, pleinement exécutoires et intactes. Le présent avenant s'y greffe et en forme un accessoire contractuel solidaire de même valeur juridique contraignante." })
+            ],
+            ...ltrLeft,
+            spacing: { after: 300 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Article 4 : Élection de date et signatures", bold: true, size: 22, color: wordColor }),
+            ],
+            ...ltrLeft,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `Fait en toute bonne foi à ${customAnnexPlace} en date du ${customAnnexDate || contract.signingDate}, rédigé en double original dument signé par les deux parties dont un exemplaire est attribué à chacun.` })
+            ],
+            ...ltrLeft,
+            spacing: { after: 600 }
+          }),
+
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: {
+               top: { style: BorderStyle.NONE },
+               bottom: { style: BorderStyle.NONE },
+               left: { style: BorderStyle.NONE },
+               right: { style: BorderStyle.NONE },
+               insideHorizontal: { style: BorderStyle.NONE },
+               insideVertical: { style: BorderStyle.NONE },
+            },
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [
+                      new Paragraph({ children: [new TextRun({ text: "Signature de l'Acquéreur", bold: true })], alignment: AlignmentType.CENTER }),
+                      new Paragraph({ text: "", spacing: { before: 1000 } }),
+                    ],
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({ children: [new TextRun({ text: "Pour le Promoteur Confort BEK", bold: true })], alignment: AlignmentType.CENTER }),
+                      new Paragraph({ text: "", spacing: { before: 1000 } }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }],
+    });
+
+    const blob = await Packer.toBlob(docObj);
+    saveAs(blob, `Avenant_Notaire_${contract.customerName}.docx`);
+  };
+
   const downloadWord = async () => {
     if (!contract) return;
+    if (showAnnex) {
+      if (language === "fr") {
+        await downloadAnnexWordFr();
+      } else {
+        await downloadAnnexWordAr();
+      }
+      return;
+    }
+
     if (language === "fr") {
       await downloadWordFr();
       return;
     }
     
-    const wordColor = selectedTemplate === "royal" ? "065F46" : "991B1B";
+    const wordColor = selectedTemplate === "royal" ? "8C1932" : "991B1B";
     const totalReceivedVal = contract.reservation?.exists ? (contract.reservation.amount + contract.downPayment) : contract.downPayment;
     const remainingBalanceVal = (contract.totalPrice + (contract.parking?.price || 0)) - totalReceivedVal;
     
@@ -1865,8 +2282,8 @@ export default function ContractPrint() {
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: refData.projectCode, bold: true, size: 20, color: isRoyal ? "065f46" : "991b1b" }),
-              new TextRun({ text: refData.manualClientNum, bold: true, size: 20, color: "d97706" }),
+               new TextRun({ text: refData.projectCode, bold: true, size: 20, color: isRoyal ? "8c1932" : "991b1b" }),
+               new TextRun({ text: refData.manualClientNum, bold: true, size: 20, color: "d97706" }),
               new TextRun({ text: refData.dateCode, size: 20, color: "4b5563" }),
               new TextRun({ text: refData.hash, bold: true, size: 20, color: "2563eb" }),
             ],
@@ -2102,7 +2519,7 @@ export default function ContractPrint() {
           new Paragraph({
             children: [
               new TextRun({ 
-                text:"يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.",
+                text:"ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة، ويمثل القيمة المادية للعقار حصراً. تُوزع باقي المصاريف والأتعاب (كالتوثيق، التسجيل، الإشهار، وتسيير الأجزاء المشتركة) بين الطرفين وفقاً لما هو مفصل في بند \"الضرائب والرسوم\".",
                 bold: true,
                 size: 20
               })
@@ -2248,7 +2665,7 @@ export default function ContractPrint() {
               spacing: { before: 300, after: 100 },
             }),
             ...groupedClauses.taxes.map((clause: string) => new Paragraph({
-              children: [new TextRun({ text: `• ${clause}` })],
+              children: [new TextRun({ text: clause.endsWith(":") ? clause : `• ${clause}`, bold: clause.endsWith(":") })],
               ...arRight,
               spacing: { before: 100 },
             }))
@@ -2365,6 +2782,30 @@ export default function ContractPrint() {
 
   return (
     <div className={`min-h-screen bg-brand-bg md:px-0 ${language === "ar" ? "text-right" : "text-left"}`} dir={language === "ar" ? "rtl" : "ltr"}>
+      {isRoyal && (
+        <style dangerouslySetInnerHTML={{__html: `
+          #contract-preview-pages .text-emerald-800, 
+          #contract-preview-pages .text-emerald-900, 
+          #contract-preview-pages .text-emerald-950 {
+            color: #8C1932 !important;
+          }
+          #contract-preview-pages .border-emerald-800, 
+          #contract-preview-pages .border-emerald-800\\/10, 
+          #contract-preview-pages .border-emerald-800\\/20, 
+          #contract-preview-pages .border-emerald-800\\/30, 
+          #contract-preview-pages .border-emerald-800\\/80 {
+            border-color: #8C1932 !important;
+          }
+          #contract-preview-pages .bg-emerald-800 {
+            background-color: #8C1932 !important;
+          }
+          #contract-preview-pages .bg-emerald-50\\/20, 
+          #contract-preview-pages .bg-emerald-50\\/10, 
+          #contract-preview-pages .bg-emerald-50\\/5 {
+            background-color: rgba(140, 25, 50, 0.05) !important;
+          }
+        `}} />
+      )}
       {/* Action Bar */}
       <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-6 no-print">
         <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -2430,11 +2871,11 @@ export default function ContractPrint() {
             onClick={() => setSelectedTemplate("royal")}
             className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
               selectedTemplate === "royal"
-                ? "bg-emerald-800 text-white shadow-md"
+                ? "bg-[#8C1932] text-white shadow-md"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            القالب الملكي الزمردي
+            القالب الملكي الفاخر
           </button>
         </div>
 
@@ -2552,9 +2993,234 @@ export default function ContractPrint() {
         </div>
       </div>
 
+      {/* Document Tab Selector & Annex Settings */}
+      <div className="max-w-7xl mx-auto px-4 mb-4 no-print w-full" dir="rtl">
+        <div className="bg-brand-card border border-white/5 p-4 rounded-2xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAnnex(false)}
+              className={`px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all ${
+                !showAnnex
+                  ? "bg-brand-accent text-black shadow-md font-arabic"
+                  : "bg-brand-input text-slate-400 hover:text-slate-200 font-arabic"
+              }`}
+            >
+              العقد الأصلي (Original Contract)
+            </button>
+            <button
+              onClick={() => setShowAnnex(true)}
+              className={`px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-2 ${
+                showAnnex
+                  ? "bg-brand-accent text-black shadow-md font-arabic"
+                  : "bg-brand-input text-slate-400 hover:text-slate-200 font-arabic"
+              }`}
+            >
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+              ملحق أتعاب التوثيق (Notary Annex)
+            </button>
+          </div>
+          
+          <div className="text-slate-400 text-xs text-center md:text-right font-arabic">
+            {showAnnex ? (
+              <span className="text-emerald-400 font-bold">✓ أنت الآن تستعرض ملحق تحديد نسب تحمل أتعاب التوثيق.</span>
+            ) : (
+              <span>أنت تستعرض العقد الأصلي الرئيسي كنفور.</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {showAnnex && (
+        <div className="max-w-7xl mx-auto px-4 mb-6 no-print w-full" dir="rtl">
+          <div className="bg-brand-card border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden space-y-6">
+            <div className="absolute top-0 right-0 w-1.5 h-full bg-emerald-500"></div>
+            
+            <div className="border-b border-white/5 pb-4">
+              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2 mb-1 font-arabic">
+                إعدادات ملحق أتعاب التوثيق (ملحق رقم 01)
+              </h3>
+              <p className="text-slate-400 text-xs md:text-sm font-arabic font-normal">
+                اضبط نسب وأرقام وقيم الملحق. سيتم تحديث معاينة الملحق والملفات المستخرجة فوراً وتطبيق نفس القالب البصري المختار.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Contract Type */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">نوع العقد المرجعي:</label>
+                <select
+                  value={contractType}
+                  onChange={(e) => setContractType(e.target.value)}
+                  className="w-full bg-brand-input border border-white/15 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-right font-arabic"
+                >
+                  <option value="بيع بناء على التصاميم">بيع بناءً على التصاميم (V.E.F.A)</option>
+                  <option value="بيع عقار">بيع عقار</option>
+                  <option value="الوعد بالبيع">وعد بالبيع</option>
+                  <option value="custom">نوع مخصص...</option>
+                </select>
+                {contractType === "custom" && (
+                  <input
+                    type="text"
+                    value={customContractType}
+                    onChange={(e) => setCustomContractType(e.target.value)}
+                    className="w-full bg-brand-input border border-white/15 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 mt-2 text-right font-arabic"
+                    placeholder="اكتب نوع العقد المخصص..."
+                  />
+                )}
+              </div>
+
+              {/* Clause Number */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">رقم بند الضرائب والرسوم (بالحروف):</label>
+                <input
+                  type="text"
+                  value={customClauseNumber}
+                  onChange={(e) => setCustomClauseNumber(e.target.value)}
+                  className="w-full bg-brand-input border border-white/15 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-right font-arabic"
+                  placeholder="مثال: السادس أو الخامس"
+                />
+              </div>
+
+              {/* Place */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">مكان التحرير:</label>
+                <input
+                  type="text"
+                  value={customAnnexPlace}
+                  onChange={(e) => setCustomAnnexPlace(e.target.value)}
+                  className="w-full bg-brand-input border border-white/15 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-right font-arabic font-semibold"
+                />
+              </div>
+
+              {/* Date */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">تاريخ التحرير:</label>
+                <input
+                  type="date"
+                  value={customAnnexDate}
+                  onChange={(e) => setCustomAnnexDate(e.target.value)}
+                  className="w-full bg-brand-input border border-white/15 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-center font-mono font-bold"
+                />
+              </div>
+
+              {/* Calculation Formula */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">صيغة توزيع الأتعاب:</label>
+                <div className="flex bg-brand-input/50 p-1 rounded-xl border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setAnnexFormat("percent")}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all font-arabic ${
+                      annexFormat === "percent"
+                        ? "bg-brand-accent text-black shadow-md animate-none"
+                        : "text-slate-400 hover:text-slate-200 animate-none"
+                    }`}
+                  >
+                    نسب مئوية (%)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAnnexFormat("lump")}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all font-arabic ${
+                      annexFormat === "lump"
+                        ? "bg-brand-accent text-black shadow-md animate-none"
+                        : "text-slate-400 hover:text-slate-200 animate-none"
+                    }`}
+                  >
+                    مبلغ جزافي مقطوع
+                  </button>
+                </div>
+              </div>
+
+              {/* Dynamic Sub-items based on formula */}
+              {annexFormat === "percent" ? (
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">نسبة المرقي (%):</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={promoterPercent}
+                      onChange={(e) => {
+                        const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                        setPromoterPercent(val);
+                        setBuyerPercent(100 - val);
+                      }}
+                      className="w-full bg-brand-input border border-white/15 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-center font-mono font-bold"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">نسبة المشتري (%):</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={buyerPercent}
+                      onChange={(e) => {
+                        const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                        setBuyerPercent(val);
+                        setPromoterPercent(100 - val);
+                      }}
+                      className="w-full bg-brand-input border border-white/15 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-center font-mono font-bold"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-4 w-full md:col-span-1 lg:col-span-1">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">قيمة مساهمة المرقي بالأرقام (دج):</label>
+                    <input
+                      type="number"
+                      value={lumpSumAmount}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setLumpSumAmount(val);
+                        setLumpSumWords(convertToArabicWords(val) + " دينار جزائري");
+                      }}
+                      className="w-full bg-brand-input border border-white/15 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-center font-mono font-bold"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {annexFormat === "lump" && (
+              <div className="w-full">
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">قيمة مساهمة المرقي بالحروف:</label>
+                <input
+                  type="text"
+                  value={lumpSumWords}
+                  onChange={(e) => setLumpSumWords(e.target.value)}
+                  className="w-full bg-brand-input border border-white/15 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-right font-arabic font-extrabold"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-12 print:gap-0 pb-20 items-center overflow-x-auto w-full px-4 sm:px-0 print:px-0 print:pb-0">
         <div id="contract-preview-pages" className="min-w-[210mm] sm:min-w-0 flex flex-col items-center gap-12 print:gap-0 scale-75 md:scale-100 origin-top print:scale-100 print:m-0 print:w-[210mm]">
-          {language === "fr" ? (
+          {showAnnex ? (
+            <AnnexPages
+              contract={contract}
+              isRoyal={isRoyal}
+              selectedTemplate={selectedTemplate}
+              contractType={contractType}
+              customContractType={customContractType}
+              annexFormat={annexFormat}
+              promoterPercent={promoterPercent}
+              buyerPercent={buyerPercent}
+              lumpSumAmount={lumpSumAmount}
+              lumpSumWords={lumpSumWords}
+              customClauseNumber={customClauseNumber}
+              customAnnexDate={customAnnexDate}
+              customAnnexPlace={customAnnexPlace}
+              language={language}
+              refData={refData}
+            />
+          ) : language === "fr" ? (
             <FrenchContractPages
               contract={contract}
               projectDetails={projectDetails}
@@ -2985,8 +3651,8 @@ export default function ContractPrint() {
                           <h3 className="font-bold text-slate-950 text-sm border-r-2 border-slate-800 pr-2 font-arabic">سادساً: التزامات الضرائب والتكاليف والرسوم المترتبة</h3>
                           <ul className="space-y-1.5 pr-1">
                             {groupedClauses.taxes.map((clause: string, idx: number) => (
-                              <li key={idx} className="flex gap-2 text-justify text-slate-700 leading-relaxed">
-                                <span className="font-bold shrink-0 text-slate-900">•</span>
+                              <li key={idx} className={clause.endsWith(":") ? "text-justify text-slate-800 font-bold leading-relaxed mb-2 list-none pr-0" : "flex gap-2 text-justify text-slate-700 leading-relaxed pr-2"}>
+                                {!clause.endsWith(":") && <span className="font-bold shrink-0 text-slate-900">•</span>}
                                 <span>{clause}</span>
                               </li>
                             ))}
@@ -3164,7 +3830,7 @@ export default function ContractPrint() {
 
             {/* Footer for Page 1 */}
             <div className="contract-footer z-10">
-              <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+              <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
               <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 1 من 7</div>
             </div>
           </div>
@@ -3236,7 +3902,7 @@ export default function ContractPrint() {
           
           {/* Footer for Page 2 */}
           <div className="contract-footer z-10">
-            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
             <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 2 من 7</div>
           </div>
         </div>
@@ -3334,14 +4000,14 @@ export default function ContractPrint() {
                   ? 'border-emerald-800/30 bg-emerald-50/10 text-emerald-950 shadow-xs' 
                   : 'border-red-800 bg-red-50/5 text-red-900'
               }`}>
-               يتفق الطرفان صراحة على أن ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة. يمثل هذا الثمن القيمة المادية للعقار حصراً؛ ويتحمل الطرفان (المرقي والمشتري) أتعاب التوثيق المتعلقة بتحرير هذا العقد بالتساوي بينهما او بنسب تفاوتة حسب الملحق المرفق، في حين ينفرد المشتري بتحمل حقوق التسجيل ومصاريف الإشهار العقاري بالمحافظة العقارية وتكاليف تسيير الأجزاء المشتركة، ويتكفل المرقي العقاري بكافة الضرائب والرسوم القانونية المترتبة على عاتقه بصفته المهنية كمرقٍ عقاري حتى تسليم المشروع.
+               ثمن البيع الإجمالي قطعي، نهائي، وغير قابل للمراجعة، ويمثل القيمة المادية للعقار حصراً. تُوزع باقي المصاريف والأتعاب (كالتوثيق، التسجيل، الإشهار، وتسيير الأجزاء المشتركة) بين الطرفين وفقاً لما هو مفصل في بند "الضرائب والرسوم".
               </div>
             </div>
           </div>
           
           {/* Footer for Page 3 */}
           <div className="contract-footer z-10">
-            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
             <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 3 من 7</div>
           </div>
         </div>
@@ -3383,7 +4049,7 @@ export default function ContractPrint() {
           
           {/* Footer for Page 4 */}
           <div className="contract-footer z-10">
-            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
             <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 4 من 7</div>
           </div>
         </div>
@@ -3468,7 +4134,7 @@ export default function ContractPrint() {
           
           {/* Footer for Page 5 */}
           <div className="contract-footer z-10">
-            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
             <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 5 من 7</div>
           </div>
         </div>
@@ -3540,8 +4206,8 @@ export default function ContractPrint() {
                   </h3>
                   <ul className="list-none space-y-1.5 pr-2">
                     {groupedClauses.taxes.map((clause: string, idx: number) => (
-                      <li key={idx} className="flex gap-2 text-xs md:text-sm text-justify leading-relaxed">
-                        <span className={`font-bold shrink-0 ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>
+                      <li key={idx} className={clause.endsWith(":") ? "text-justify font-bold leading-relaxed mb-2 list-none pr-0" : "flex gap-2 text-justify leading-relaxed pr-2"}>
+                        {!clause.endsWith(":") && <span className={`font-bold shrink-0 ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>}
                         <span>{clause}</span>
                       </li>
                     ))}
@@ -3589,6 +4255,14 @@ export default function ContractPrint() {
                      <span className={`font-bold ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>
                      <span>(مخطط الشقة) Plan appartement</span>
                    </li>
+                   <li className="flex items-start gap-2">
+                     <span className={`font-bold ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>
+                     <span>(ملحق أتعاب التوثيق) Avenant des honoraires de notaire</span>
+                   </li>
+                   <li className="flex items-start gap-2">
+                     <span className={`font-bold ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>
+                     <span>(رزنامة أقساط الشقة) Échéancier de paiement de l'appartement</span>
+                   </li>
                  </ul>
               </div>
             </div>
@@ -3596,7 +4270,7 @@ export default function ContractPrint() {
           
           {/* Footer for Page 6 */}
           <div className="contract-footer z-10">
-            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
             <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 6 من 7</div>
           </div>
         </div>
@@ -3606,14 +4280,14 @@ export default function ContractPrint() {
           {isRoyal && (
             <div className="absolute inset-4 border-2 border-double border-amber-600/20 pointer-events-none rounded-2xl z-0" />
           )}
-          <div className="flex flex-col flex-grow justify-center items-center py-6 space-y-8 z-10 relative" style={{ marginBottom: "20px" }}>
-            <div className="text-center w-full mb-2">
+          <div className="flex flex-col flex-grow justify-between py-12 px-10 z-10 relative">
+            <div className="text-right w-full pt-4 pr-4">
                <p className="text-lg font-bold">
                 حررت ببرج الكيفان بتاريخ: <span className={`font-sans font-bold px-1 ${isRoyal ? 'text-emerald-950' : ''}`}>{contract.signingDate}</span>
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-8 text-center text-lg font-bold w-full max-w-xl mx-auto px-4">
+            <div className="grid grid-cols-2 gap-8 text-center text-lg font-bold w-full max-w-xl mx-auto px-4 mb-16">
               <div className="space-y-4">
                 <div className="h-14 flex flex-col justify-between">
                   <p className={isRoyal ? 'text-emerald-950' : ''}>بصمة وإمضاء المشتري</p>
@@ -3647,7 +4321,7 @@ export default function ContractPrint() {
           
           {/* Footer for Page 7 */}
           <div className="contract-footer z-10">
-            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
             <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 7 من 7</div>
           </div>
         </div>

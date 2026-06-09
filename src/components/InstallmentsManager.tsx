@@ -97,6 +97,7 @@ export default function InstallmentsManager({ user }: { user: User }) {
   
   // Custom manual inputs (also used to fill fields for Case B)
   const [formData, setFormData] = useState({
+    contractId: "",
     customerName: "",
     idType: "بطاقة تعريف",
     idNumber: "",
@@ -192,6 +193,7 @@ export default function InstallmentsManager({ user }: { user: User }) {
     // Auto fill fields
     setFormData(prev => ({
       ...prev,
+      contractId: selectedContractId,
       customerName: contract.customerName,
       idType: contract.idType || "بطاقة تعريف",
       idNumber: contract.idNumber || "",
@@ -252,7 +254,7 @@ export default function InstallmentsManager({ user }: { user: User }) {
       : formData.previousPaid;
 
     const payload: Omit<PaymentInstallment, "id"> = {
-      contractId: creationMode === "case-a" ? selectedContractId : "",
+      contractId: creationMode === "case-a" ? selectedContractId : (formData.contractId?.trim() || ""),
       customerName: formData.customerName.trim(),
       idType: formData.idType,
       idNumber: formData.idNumber.trim(),
@@ -293,6 +295,7 @@ export default function InstallmentsManager({ user }: { user: User }) {
       // Reset creation state
       setSelectedContractId("");
       setFormData({
+        contractId: "",
         customerName: "",
         idType: "بطاقة تعريف",
         idNumber: "",
@@ -409,38 +412,40 @@ export default function InstallmentsManager({ user }: { user: User }) {
     let certContent = "";
     if (isCertificate) {
       certContent = `
-              <div class="contract-page flex flex-col justify-between font-sans relative bg-white p-10 select-none text-black" style="direction: rtl; text-align: right; box-sizing: border-box; font-family: 'Cairo', 'Inter', sans-serif;">
+              <div class="contract-page flex flex-col justify-between font-sans relative bg-white select-none text-black" style="direction: rtl; text-align: right; box-sizing: border-box; font-family: 'Cairo', 'Inter', sans-serif; padding: 15mm 20mm 25mm 20mm !important; width: 210mm !important; height: 297mm !important; max-height: 297mm !important; position: relative !important; overflow: hidden !important; display: flex !important; flex-direction: column !important;">
                 
                 <!-- Header Section -->
-                <div class="flex justify-between items-start border-b-2 pb-4 mb-4" style="display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #8C1932; padding-bottom: 1rem; margin-bottom: 1rem;">
+                <div class="flex justify-between items-start border-b-2 pb-3 mb-3" style="display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #8C1932; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
                   <div class="text-right" style="text-align: right;">
-                    <h2 class="text-base font-black" style="font-weight: 900; font-size: 16px; margin: 0 0 2px 0; font-family: 'Cairo', sans-serif; color: #8C1932;">شركة كـونـفـور العـقارية</h2>
-                    <p class="text-[10px] text-slate-500 mt-1" style="font-size: 10px; color: #64748b; margin: 0 0 2px 0;">المقر: بن مراد، بلدية برج الكيفان، الجزائر العاصمة</p>
-                    <p class="text-[9px] text-slate-500 font-mono" style="font-size: 9px; color: #64748b; font-family: monospace; margin: 0;">السجل التجاري: 16/01-5143817122 | الهاتف: 0772.68.43.63</p>
+                    <h2 class="text-base font-black" style="font-weight: 900; font-size: 15px; margin: 0 0 1px 0; font-family: 'Cairo', sans-serif; color: #8C1932;">شركة كـونـفـور العـقارية</h2>
+                    <p class="text-[9.5px] text-slate-500 mt-0.5" style="font-size: 9.5px; color: #64748b; margin: 0 0 1px 0;">المقر: بن مراد، بلدية برج الكيفان، الجزائر العاصمة</p>
+                    <p class="text-[8.5px] text-slate-500 font-mono" style="font-size: 8.5px; color: #64748b; font-family: monospace; margin: 0;">السجل التجاري: 16/01-5143817122 | الهاتف: 0772.68.43.63</p>
                   </div>
-                  <div class="text-left font-mono text-[10px] text-slate-500" style="text-align: left; font-family: monospace; font-size: 10px; color: #64748b; display: flex; flex-direction: column; gap: 0.25rem;">
-                    <p style="margin: 0; font-weight: bold; color: #8C1932; font-family: sans-serif;">المستند: شهادة أقساط</p>
-                    <p style="margin: 0;">رقم السند: CR-${(targetPayment.id || "").substring(0, 8).toUpperCase()}</p>
-                    <p style="margin: 0;">تاريخ الإصدار: ${targetPayment.paymentDate}</p>
+                  <div class="text-left text-xs space-y-1 font-mono" style="text-align: right; font-family: 'Cairo', sans-serif; font-size: 10.5px; display: flex; flex-direction: column; gap: 0.25rem; color: #334155;">
+                    <p style="margin: 0; font-weight: 800; color: #8C1932; font-size: 11.5px;">شهادة تسديد أقساط</p>
+                    <p style="margin: 0; font-weight: 700;">رقم وصل التحصيل: <span style="font-family: monospace; font-weight: 900; color: #8C1932; border: 1px solid #8C1932; padding: 1px 5px; border-radius: 4px; background: rgba(140, 25, 50, 0.05);">${targetReceiptNo}</span></p>
+                    <p style="margin: 0;">الرقم التسلسلي للنظام: <span style="font-family: monospace; font-weight: 700;">CR-${(targetPayment.id || "").substring(0, 8).toUpperCase()}</span></p>
+                    <p style="margin: 0;">تاريخ إصدار السند: <span style="font-family: monospace; font-weight: 700;">${targetPayment.paymentDate}</span></p>
+                    <p style="margin: 0;">المرجع التعاقدي: <span style="font-family: monospace; font-weight: 700;">${targetPayment.contractId ? (targetPayment.contractId.length > 10 ? targetPayment.contractId.substring(0, 8).toUpperCase() : targetPayment.contractId.toUpperCase()) : "غير محدد"}</span></p>
                   </div>
                 </div>
 
                 <!-- Styled Title -->
-                <div style="text-align: center; margin: 1rem 0;">
-                  <h1 style="font-size: 18px; font-weight: 800; color: #8C1932; border-top: 2px solid #8C1932; border-bottom: 2px solid #8C1932; padding: 0.5rem 0; margin: 0; display: inline-block; width: 100%;">
+                <div style="text-align: center; margin: 0.125rem 0 0.375rem 0;">
+                  <h1 style="font-size: 17px; font-weight: 800; color: #8C1932; border-bottom: 2px solid #8C1932; padding: 0.125rem 0 0.375rem 0; margin: 0; display: inline-block; width: 100%;">
                     شهادة تسديد أقساط الشقة
                   </h1>
                 </div>
 
                 <!-- Detailed Sections -->
-                <div class="flex-grow space-y-4 text-xs text-slate-900" style="flex-grow: 1; display: flex; flex-direction: column; gap: 1rem; font-size: 12px; color: #0f172a;">
+                <div class="flex-grow space-y-3.5 text-xs text-slate-900" style="flex-grow: 1; display: flex; flex-direction: column; gap: 0.85rem; font-size: 11.5px; color: #0f172a;">
                   
                   <!-- Customers Section -->
                   <div>
-                    <h3 class="font-extrabold uppercase text-sm mb-1.5" style="font-weight: 800; font-size: 13.5px; border-right: 4px solid #8C1932; padding-right: 0.625rem; margin-bottom: 0.375rem; text-align: right; color: #8C1932;">
+                    <h3 class="font-extrabold uppercase text-xs mb-1" style="font-weight: 800; font-size: 12.5px; border-right: 4px solid #8C1932; padding-right: 0.5rem; margin-bottom: 0.25rem; text-align: right; color: #8C1932;">
                       | ١. معلومات المشتري (الطرف المستفيد)
                     </h3>
-                    <div class="grid grid-cols-2 gap-4 bg-slate-50/50 p-3 rounded-lg border" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
+                    <div class="grid grid-cols-2 gap-3 bg-slate-50/50 p-2.5 rounded-lg border" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.6rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
                       <p style="margin: 0;">
                         <span class="text-slate-500 font-bold" style="color: #64748b; font-weight: 700;">الاسم واللقب: </span>
                         <span class="font-extrabold text-black" style="font-weight: 800;">${targetPayment.customerName}</span>
@@ -450,8 +455,8 @@ export default function InstallmentsManager({ user }: { user: User }) {
                         <span class="font-mono font-bold" style="font-family: monospace; font-weight: 700;">${targetPayment.idNumber}</span> (صادرة بتاريخ ${targetPayment.idIssueDate} من ${targetPayment.idIssuePlace || "الجزائر"})
                       </p>
                       ${targetPayment.proxyName ? `
-                        <div class="col-span-2 border-t pt-2 mt-1 text-slate-700 italic" style="grid-column: span 2; border-top: 1px solid #e2e8f0; padding-top: 0.5rem; margin-top: 0.25rem; color: #334155; font-style: italic;">
-                          <span class="text-slate-500 font-bold text-[11px]" style="color: #64748b; font-weight: 700; font-size: 11px;">الوكيل الدافع بالوكالة: </span>
+                        <div class="col-span-2 border-t pt-1.5 mt-0.5 text-slate-700 italic" style="grid-column: span 2; border-top: 1px solid #e2e8f0; padding-top: 0.35rem; margin-top: 0.15rem; color: #334155; font-style: italic;">
+                          <span class="text-slate-500 font-bold text-[10px]" style="color: #64748b; font-weight: 700; font-size: 10px;">الوكيل الدافع بالوكالة: </span>
                           <span>السيدة ${targetPayment.proxyName} (بطاقة رقم ${targetPayment.proxyIdNumber} الصادرة بتاريخ ${targetPayment.proxyIdIssueDate} من ${targetPayment.proxyIdIssuePlace})</span>
                         </div>
                       ` : ""}
@@ -460,10 +465,10 @@ export default function InstallmentsManager({ user }: { user: User }) {
 
                   <!-- Property Section -->
                   <div>
-                    <h3 class="font-extrabold uppercase text-sm mb-1.5" style="font-weight: 800; font-size: 13.5px; border-right: 4px solid #8C1932; padding-right: 0.625rem; margin-bottom: 0.375rem; text-align: right; color: #8C1932;">
+                    <h3 class="font-extrabold uppercase text-xs mb-1" style="font-weight: 800; font-size: 12.5px; border-right: 4px solid #8C1932; padding-right: 0.5rem; margin-bottom: 0.25rem; text-align: right; color: #8C1932;">
                       | ٢. بيان العقار المتخصص
                     </h3>
-                    <div class="grid grid-cols-3 gap-4 bg-slate-50/50 p-3 rounded-lg border" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
+                    <div class="grid grid-cols-3 gap-3 bg-slate-50/50 p-2.5 rounded-lg border" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.6rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
                       <p style="margin: 0;">
                         <span class="text-slate-500" style="color: #64748b;">المشروع العقاري: </span>
                         <span class="font-bold text-black" style="font-weight: 700;">${targetPayment.projectName}</span>
@@ -481,16 +486,16 @@ export default function InstallmentsManager({ user }: { user: User }) {
 
                   <!-- Financial Operation Section / Statement Confirmation -->
                   <div>
-                    <h3 class="font-extrabold uppercase text-sm mb-1.5" style="font-weight: 800; font-size: 13.5px; border-right: 4px solid #8C1932; padding-right: 0.625rem; margin-bottom: 0.375rem; text-align: right; color: #8C1932;">
+                    <h3 class="font-extrabold uppercase text-xs mb-1" style="font-weight: 800; font-size: 12.5px; border-right: 4px solid #8C1932; padding-right: 0.5rem; margin-bottom: 0.25rem; text-align: right; color: #8C1932;">
                       | ٣. تفاصيل المستند وتصريح التسديد
                     </h3>
-                    <div class="space-y-2 bg-slate-50/50 p-3 rounded-lg border" style="display: flex; flex-direction: column; gap: 0.5rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
-                      <p style="margin: 0; line-height: 1.6;">
+                    <div class="space-y-1.5 bg-slate-50/50 p-2.5 rounded-lg border" style="display: flex; flex-direction: column; gap: 0.4rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.6rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
+                      <p style="margin: 0; line-height: 1.5;">
                         <span class="text-slate-500 font-bold" style="color: #64748b; font-weight: 700;">إقرار مسير الشركة: </span>
                         أشهد أنا الموقع أدناه السيد <span class="font-bold" style="font-weight: 700;">نجار عبد الغني</span> بصفة مسير شركة كونفور العقارية، باستلام القسط الموضح تفاصيله المالية تِباعاً لنسبة الأقساط العقارية المحصلة.
                       </p>
-                      <div class="h-[1px] bg-slate-200 my-1" style="height: 1px; background-color: #cbd5e1; margin: 0.25rem 0;"></div>
-                      <div class="grid grid-cols-2 gap-4" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                      <div class="h-[1px] bg-slate-200 my-0.5" style="height: 1px; background-color: #cbd5e1; margin: 0.15rem 0;"></div>
+                      <div class="grid grid-cols-2 gap-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                         <p style="margin: 0;">
                           <span class="text-slate-500" style="color: #64748b;">طبيعة القسط المستلم: </span>
                           <span class="font-extrabold text-black" style="font-weight: 800;">${targetPayment.paymentNature}</span>
@@ -500,8 +505,8 @@ export default function InstallmentsManager({ user }: { user: User }) {
                           <span class="font-bold text-slate-900 bg-slate-200 px-2 py-0.5 rounded text-[10px]" style="font-weight: 700; background-color: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-size: 10px;">${targetPayment.paymentMethod}</span>
                         </p>
                       </div>
-                      <p class="text-slate-850 font-medium italic" style="font-size: 13px; color: #1e293b; font-weight: 500; font-style: italic; margin: 0.25rem 0 0 0;">
-                        <span class="text-slate-500 text-xs font-bold" style="color: #64748b; font-size: 12px; font-weight: 700;">المبلغ المستلم بالحروف: </span>
+                      <p class="text-slate-850 font-medium italic" style="font-size: 12px; color: #1e293b; font-weight: 500; font-style: italic; margin: 0.15rem 0 0 0;">
+                        <span class="text-slate-500 text-[11px] font-bold" style="color: #64748b; font-size: 11px; font-weight: 700;">المبلغ المستلم بالحروف: </span>
                         <span>${targetPayment.currentPaymentArabic}</span>
                       </p>
                     </div>
@@ -509,36 +514,36 @@ export default function InstallmentsManager({ user }: { user: User }) {
 
                   <!-- Relevé de Compte Table (Aligned under each other cleanly) -->
                   <div>
-                    <h3 class="font-extrabold uppercase text-sm mb-1.5" style="font-weight: 800; font-size: 13.5px; border-right: 4px solid #8C1932; padding-right: 0.625rem; margin-bottom: 0.375rem; text-align: right; color: #8C1932;">
+                    <h3 class="font-extrabold uppercase text-xs mb-1" style="font-weight: 800; font-size: 12.5px; border-right: 4px solid #8C1932; padding-right: 0.5rem; margin-bottom: 0.25rem; text-align: right; color: #8C1932;">
                       | ٤. كشف الوضعية المالية للزبون
                     </h3>
-                    <table class="w-full text-sm border-collapse" style="width: 100%; border-collapse: collapse; margin-top: 0.25rem; border: 1px solid #e2e8f0;">
+                    <table class="w-full text-xs border-collapse" style="width: 100%; border-collapse: collapse; margin-top: 0.15rem; border: 1px solid #e2e8f0;">
                       <thead>
                         <tr class="bg-slate-50 text-slate-700" style="background-color: #f8fafc; border-bottom: 2px solid #8C1932;">
-                          <th class="py-2 px-4 text-right font-bold text-xs" style="padding: 0.5rem 1rem; text-align: right; font-size: 11px;">البيان التفصيلي للوضعية الحسابية</th>
-                          <th class="py-2 px-4 text-left font-bold text-xs" style="padding: 0.5rem 1rem; text-align: left; font-size: 11px; font-family: monospace;">القيمة المالية (دينار جزائري)</th>
+                          <th class="py-1.5 px-3 text-right font-bold text-[10.5px]" style="padding: 0.35rem 0.75rem; text-align: right; font-size: 10.5px;">البيان التفصيلي للوضعية الحسابية</th>
+                          <th class="py-1.5 px-3 text-left font-bold text-[10.5px]" style="padding: 0.35rem 0.75rem; text-align: left; font-size: 10.5px; font-family: monospace;">القيمة المالية (دينار جزائري)</th>
                         </tr>
                       </thead>
-                      <tbody class="divide-y divide-slate-100 text-slate-800" style="color: #1e293b;">
+                      <tbody class="divide-y divide-slate-100 text-slate-800" style="color: #1e293b; font-size: 11px;">
                         <tr class="border-b" style="border-bottom: 1px solid #e2e8f0;">
-                          <td class="py-2 px-4 text-right" style="padding: 0.5rem 1rem; text-align: right;">۱. السعر الإجمالي للأصل العقاري المعين</td>
-                          <td class="py-2 px-4 text-left font-mono font-bold" style="padding: 0.5rem 1rem; text-align: left; font-family: monospace; font-weight: 700;">${totalPriceFormatted} دج</td>
+                          <td class="py-1.5 px-3 text-right" style="padding: 0.35rem 0.75rem; text-align: right;">۱. السعر الإجمالي للأصل العقاري المعين</td>
+                          <td class="py-1.5 px-3 text-left font-mono font-bold" style="padding: 0.35rem 0.75rem; text-align: left; font-family: monospace; font-weight: 700;">${totalPriceFormatted} دج</td>
                         </tr>
                         <tr class="border-b" style="border-bottom: 1px solid #e2e8f0;">
-                          <td class="py-2 px-4 text-right" style="padding: 0.5rem 1rem; text-align: right;">۲. مجموع المدفوعات التراكمية السابقة لليوم</td>
-                          <td class="py-2 px-4 text-left font-mono font-medium text-slate-600" style="padding: 0.5rem 1rem; text-align: left; font-family: monospace; font-weight: 500; color: #475569;">${Number(targetPayment.previousPaid).toLocaleString()} دج</td>
+                          <td class="py-1.5 px-3 text-right" style="padding: 0.35rem 0.75rem; text-align: right;">۲. مجموع المدفوعات التراكمية السابقة لليوم</td>
+                          <td class="py-1.5 px-3 text-left font-mono font-medium text-slate-600" style="padding: 0.35rem 0.75rem; text-align: left; font-family: monospace; font-weight: 500; color: #475569;">${Number(targetPayment.previousPaid).toLocaleString()} دج</td>
                         </tr>
                         <tr class="border-b" style="border-bottom: 1px solid #e2e8f0;">
-                          <td class="py-2 px-4 text-right" style="padding: 0.5rem 1rem; text-align: right;">۳. القيمة النقدية المستلمة لليوم بموجب السند</td>
-                          <td class="py-2 px-4 text-left font-mono font-bold text-slate-900" style="padding: 0.5rem 1rem; text-align: left; font-family: monospace; font-weight: 750;">${currentPaymentFormatted} دج</td>
+                          <td class="py-1.5 px-3 text-right" style="padding: 0.35rem 0.75rem; text-align: right;">۳. القيمة النقدية المستلمة لليوم بموجب السند</td>
+                          <td class="py-1.5 px-3 text-left font-mono font-bold text-slate-900" style="padding: 0.35rem 0.75rem; text-align: left; font-family: monospace; font-weight: 750;">${currentPaymentFormatted} دج</td>
                         </tr>
                         <tr class="border-b bg-emerald-50/40" style="border-bottom: 1px solid #e2e8f0; background-color: rgba(240, 253, 250, 0.4);">
-                          <td class="py-2 px-4 text-right font-bold text-emerald-850" style="padding: 0.5rem 1rem; text-align: right; font-weight: 700; color: #065f46;">٤. إجمالي المدفوعات والمقبوضات المحصلة فعلياً</td>
-                          <td class="py-2 px-4 text-left font-mono font-black text-emerald-850" style="padding: 0.5rem 1rem; text-align: left; font-family: monospace; font-weight: 900; color: #065f46;">${totalPaidFormatted} دج</td>
+                          <td class="py-1.5 px-3 text-right font-bold text-emerald-850" style="padding: 0.35rem 0.75rem; text-align: right; font-weight: 700; color: #065f46;">٤. إجمالي المدفوعات والمقبوضات المحصلة فعلياً</td>
+                          <td class="py-1.5 px-3 text-left font-mono font-black text-emerald-850" style="padding: 0.35rem 0.75rem; text-align: left; font-family: monospace; font-weight: 900; color: #065f46;">${totalPaidFormatted} دج</td>
                         </tr>
                         <tr style="background-color: rgba(140, 25, 50, 0.05);">
-                          <td class="py-2 px-4 text-right font-bold text-rose-850" style="padding: 0.5rem 1rem; text-align: right; font-weight: 700; color: #8C1932;">٥. الرصيد الإجمالي المتبقي بذمة المشتري</td>
-                          <td class="py-2 px-4 text-left font-mono font-black" style="padding: 0.5rem 1rem; text-align: left; font-family: monospace; font-weight: 900; color: #8C1932;">${remainingBalanceFormatted} دج</td>
+                          <td class="py-1.5 px-3 text-right font-bold text-rose-850" style="padding: 0.35rem 0.75rem; text-align: right; font-weight: 700; color: #8C1932;">٥. الرصيد الإجمالي المتبقي بذمة المشتري</td>
+                          <td class="py-1.5 px-3 text-left font-mono font-black" style="padding: 0.35rem 0.75rem; text-align: left; font-family: monospace; font-weight: 900; color: #8C1932;">${remainingBalanceFormatted} دج</td>
                         </tr>
                       </tbody>
                     </table>
@@ -547,67 +552,73 @@ export default function InstallmentsManager({ user }: { user: User }) {
                 </div>
 
                 <!-- Date & Signatures Footer -->
-                <div class="pt-3 border-t border-slate-200" style="border-top: 1px solid #e2e8f0; padding-top: 0.75rem; margin-top: auto;">
-                  <p class="text-center text-xs text-slate-700" style="text-align: center; font-size: 11px; color: #334155; margin-bottom: 1rem; margin-top: 0;">
+                <div class="pt-2 border-t border-slate-200" style="border-top: 1px solid #cbd5e1; padding-top: 0.5rem; margin-top: auto;">
+                  <p class="text-center text-xs text-slate-700" style="text-align: center; font-size: 11px; color: #334155; margin-bottom: 0.5rem; margin-top: 0;">
                     حرر بالجزائر العاصمة في : <span class="font-bold underline" style="font-weight: 700; text-decoration: underline;">${targetPayment.paymentDate}</span>
                   </p>
-                  <div class="grid grid-cols-2 gap-8 text-center text-sm font-bold mt-4 mb-2" style="display: grid; grid-template-cols: 1fr 1fr; gap: 2rem; text-align: center; font-size: 13px; font-weight: 700;">
-                    <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+                  <div class="grid grid-cols-2 gap-8 text-center text-xs font-bold mt-2" style="display: grid; grid-template-cols: 1fr 1fr; gap: 2rem; text-align: center; font-size: 11.5px; font-weight: 700; margin-bottom: 0.5rem;">
+                    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                       <p class="text-slate-900 font-extrabold underline" style="text-decoration: underline; margin: 0;">بصمة وتوقيع الزبون</p>
-                      <p class="text-xs text-slate-500" style="font-size: 11px; color: #64748b; font-weight: normal; margin: 0;">(بإمضائه وأصبعه)</p>
+                      <p class="text-xs text-slate-500" style="font-size: 10px; color: #64748b; font-weight: normal; margin: 0;">(بإمضائه وأصبعه)</p>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+                    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                       <p class="text-slate-900 font-extrabold underline" style="text-decoration: underline; margin: 0;">مسير الشركة ومهر المؤسسة</p>
-                      <p class="text-xs text-slate-500" style="font-size: 11px; color: #64748b; font-weight: normal; margin: 0;">م. نجار عبد الغني</p>
+                      <p class="text-xs text-slate-500" style="font-size: 10px; color: #64748b; font-weight: normal; margin: 0;">م. نجار عبد الغني</p>
                     </div>
                   </div>
                 </div>
 
-                <!-- Regulatory Footer -->
-                <div class="contract-footer text-center text-[9px] text-slate-400" style="text-align: center; font-size: 9px; color: #94a3b8; margin-top: 1rem; border-t: 1px dotted #e2e8f0; padding-top: 0.5rem;">
-                  شركة كـونـفـور العـقارية - سند قانوني لإقرار عملية الدفع الجزئي ولا يعد عقداً لنقل الملكية النهائية.
+                <!-- Bottom Decorative Burgundy Line & Page Number Grouped (Absolute at bottom) -->
+                <div style="position: absolute; bottom: 8mm; left: 20mm; right: 20mm; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="border-top: 3.5px solid #8C1932; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; direction: rtl;">
+                    <span style="font-size: 9.5px; color: #475569; font-weight: 700; font-family: 'Cairo', sans-serif;">
+                      شركة كـونـفـور العـقارية - سند قانوني لإقرار عملية الدفع الجزئي ولا يعد عقداً لنقل الملكية النهائية.
+                    </span>
+                    <span style="font-size: 10px; color: #8C1932; font-weight: 800; font-family: 'Cairo', sans-serif;">
+                      الصفحة ١ من ١
+                    </span>
+                  </div>
                 </div>
+
               </div>
       `;
     } else {
       certContent = `
-              <div class="contract-page flex flex-col justify-between font-sans relative bg-white p-10 select-none text-black" style="direction: rtl; text-align: right; box-sizing: border-box; font-family: 'Cairo', 'Inter', sans-serif;">
+              <div class="contract-page flex flex-col justify-between font-sans relative bg-white select-none text-black" style="direction: rtl; text-align: right; box-sizing: border-box; font-family: 'Cairo', 'Inter', sans-serif; padding: 15mm 20mm 25mm 20mm !important; width: 210mm !important; height: 297mm !important; max-height: 297mm !important; position: relative !important; overflow: hidden !important; display: flex !important; flex-direction: column !important;">
                 
                 <!-- Header -->
-                <div class="flex justify-between items-start border-b-2 pb-4 mb-4" style="display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #8C1932; padding-bottom: 1rem; margin-bottom: 1rem;">
+                <div class="flex justify-between items-start border-b-2 pb-3 mb-3" style="display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #8C1932; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
                   <div class="text-right" style="text-align: right;">
-                    <h2 class="text-base font-black" style="font-weight: 900; font-size: 16px; margin: 0 0 2px 0; font-family: 'Cairo', sans-serif; color: #8C1932;">مؤسسة كنفور للخدمات العقارية</h2>
-                    <p class="text-[10px] text-slate-500 mt-1" style="font-size: 10px; color: #64748b; margin: 0 0 2px 0;">المقر: بن مراد، بلدية برج الكيفان، الجزائر العاصمة</p>
-                    <p class="text-[9px] text-slate-500 font-mono" style="font-size: 9px; color: #64748b; font-family: monospace; margin: 0;">السجل التجاري: 16/01-5143817122 | الهاتف: 0772.68.43.63</p>
+                    <h2 class="text-base font-black" style="font-weight: 900; font-size: 15px; margin: 0 0 1px 0; font-family: 'Cairo', sans-serif; color: #8C1932;">مؤسسة كنفور للخدمات العقارية</h2>
+                    <p class="text-[9.5px] text-slate-500 mt-0.5" style="font-size: 9.5px; color: #64748b; margin: 0 0 1px 0;">المقر: بن مراد، بلدية برج الكيفان، الجزائر العاصمة</p>
+                    <p class="text-[8.5px] text-slate-500 font-mono" style="font-size: 8.5px; color: #64748b; font-family: monospace; margin: 0;">السجل التجاري: 16/01-5143817122 | الهاتف: 0772.68.43.63</p>
                   </div>
                   
-                  <div class="text-left text-xs space-y-1 font-mono" style="text-align: right; font-family: 'Cairo', sans-serif; font-size: 11px; display: flex; flex-direction: column; gap: 0.35rem; color: #334155;">
-                    <p style="margin: 0; font-weight: 800; color: #8C1932; font-size: 12px;">وصل استلام مالي</p>
-                    <p style="margin: 0; font-weight: 700;">رقم وصل التحصيل: <span style="font-family: monospace; font-weight: 900; color: #8C1932; border: 1px solid #8C1932; padding: 2px 6px; border-radius: 4px; background: rgba(140, 25, 50, 0.05);">${targetReceiptNo}</span></p>
+                  <div class="text-left text-xs space-y-1 font-mono" style="text-align: right; font-family: 'Cairo', sans-serif; font-size: 10.5px; display: flex; flex-direction: column; gap: 0.25rem; color: #334155;">
+                    <p style="margin: 0; font-weight: 800; color: #8C1932; font-size: 11.5px;">وصل استلام مالي</p>
+                    <p style="margin: 0; font-weight: 700;">رقم وصل التحصيل: <span style="font-family: monospace; font-weight: 900; color: #8C1932; border: 1px solid #8C1932; padding: 1px 5px; border-radius: 4px; background: rgba(140, 25, 50, 0.05);">${targetReceiptNo}</span></p>
                     <p style="margin: 0;">الرقم التسلسلي للنظام: <span style="font-family: monospace; font-weight: 700;">QU-${(targetPayment.id || "").substring(0, 8).toUpperCase()}</span></p>
                     <p style="margin: 0;">تاريخ إصدار الوصل: <span style="font-family: monospace; font-weight: 700;">${targetPayment.paymentDate}</span></p>
-                    ${targetPayment.contractId ? `
-                      <p style="margin: 0;">المرجع التعاقدي: <span style="font-family: monospace; font-weight: 700;">${targetPayment.contractId.substring(0, 8).toUpperCase()}</span></p>
-                    ` : ""}
+                    <p style="margin: 0;">المرجع التعاقدي: <span style="font-family: monospace; font-weight: 700;">${targetPayment.contractId ? (targetPayment.contractId.length > 10 ? targetPayment.contractId.substring(0, 8).toUpperCase() : targetPayment.contractId.toUpperCase()) : "غير محدد"}</span></p>
                   </div>
                 </div>
 
                 <!-- Single center title to avoid redundant duplication -->
-                <div style="text-align: center; margin: 1rem 0;">
-                  <h1 style="font-size: 18px; font-weight: 800; color: #8C1932; border-top: 2px solid #8C1932; border-bottom: 2px solid #8C1932; padding: 0.5rem 0; margin: 0; display: inline-block; width: 100%;">
+                <div style="text-align: center; margin: 0.125rem 0 0.375rem 0;">
+                  <h1 style="font-size: 17px; font-weight: 800; color: #8C1932; border-bottom: 2px solid #8C1932; padding: 0.125rem 0 0.375rem 0; margin: 0; display: inline-block; width: 100%;">
                     وصل استلام مالي
                   </h1>
                 </div>
 
                 <!-- Detailed Sections -->
-                <div class="flex-grow space-y-4 text-xs text-slate-900" style="flex-grow: 1; display: flex; flex-direction: column; gap: 1rem; font-size: 12px; color: #0f172a;">
+                <div class="flex-grow space-y-3.5 text-xs text-slate-900" style="flex-grow: 1; display: flex; flex-direction: column; gap: 0.85rem; font-size: 11.5px; color: #0f172a;">
                   
                   <!-- Customers Section -->
                   <div>
-                    <h3 class="font-extrabold uppercase text-sm mb-1.5" style="font-weight: 800; font-size: 13.5px; border-right: 4px solid #8C1932; padding-right: 0.625rem; margin-bottom: 0.375rem; text-align: right; color: #8C1932;">
+                    <h3 class="font-extrabold uppercase text-xs mb-1" style="font-weight: 800; font-size: 12.5px; border-right: 4px solid #8C1932; padding-right: 0.5rem; margin-bottom: 0.25rem; text-align: right; color: #8C1932;">
                       | ١. معلومات الزبون (الدافع)
                     </h3>
-                    <div class="grid grid-cols-2 gap-4 bg-slate-50/50 p-3 rounded-lg border" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
+                    <div class="grid grid-cols-2 gap-3 bg-slate-50/50 p-2.5 rounded-lg border" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.6rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
                       <p style="margin: 0;">
                         <span class="text-slate-500 font-bold" style="color: #64748b; font-weight: 700;">الاسم واللقب: </span>
                         <span class="font-extrabold text-black" style="font-weight: 800;">${targetPayment.customerName}</span>
@@ -617,8 +628,8 @@ export default function InstallmentsManager({ user }: { user: User }) {
                         <span class="font-mono font-bold" style="font-family: monospace; font-weight: 700;">${targetPayment.idNumber}</span> (صادرة بتاريخ ${targetPayment.idIssueDate} من ${targetPayment.idIssuePlace || "الجزائر"})
                       </p>
                       ${targetPayment.proxyName ? `
-                        <div class="col-span-2 border-t pt-2 mt-1 text-slate-700 italic" style="grid-column: span 2; border-top: 1px solid #e2e8f0; padding-top: 0.5rem; margin-top: 0.25rem; color: #334155; font-style: italic;">
-                          <span class="text-slate-500 font-bold text-[11px]" style="color: #64748b; font-weight: 700; font-size: 11px;">الوكيل الدافع بالوكالة: </span>
+                        <div class="col-span-2 border-t pt-1.5 mt-0.5 text-slate-700 italic" style="grid-column: span 2; border-top: 1px solid #e2e8f0; padding-top: 0.35rem; margin-top: 0.15rem; color: #334155; font-style: italic;">
+                          <span class="text-slate-500 font-bold text-[10px]" style="color: #64748b; font-weight: 700; font-size: 10px;">الوكيل الدافع بالوكالة: </span>
                           <span>السيدة ${targetPayment.proxyName} (بطاقة رقم ${targetPayment.proxyIdNumber} الصادرة بتاريخ ${targetPayment.proxyIdIssueDate} من ${targetPayment.proxyIdIssuePlace})</span>
                         </div>
                       ` : ""}
@@ -627,10 +638,10 @@ export default function InstallmentsManager({ user }: { user: User }) {
 
                   <!-- Property Section -->
                   <div>
-                    <h3 class="font-extrabold uppercase text-sm mb-1.5" style="font-weight: 800; font-size: 13.5px; border-right: 4px solid #8C1932; padding-right: 0.625rem; margin-bottom: 0.375rem; text-align: right; color: #8C1932;">
+                    <h3 class="font-extrabold uppercase text-xs mb-1" style="font-weight: 800; font-size: 12.5px; border-right: 4px solid #8C1932; padding-right: 0.5rem; margin-bottom: 0.25rem; text-align: right; color: #8C1932;">
                       | ٢. بيان العقار المخصص
                     </h3>
-                    <div class="grid grid-cols-3 gap-4 bg-slate-50/50 p-3 rounded-lg border" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
+                    <div class="grid grid-cols-3 gap-3 bg-slate-50/50 p-2.5 rounded-lg border" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.6rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
                       <p style="margin: 0;">
                         <span class="text-slate-500" style="color: #64748b;">المشروع العقاري: </span>
                         <span class="font-bold text-black" style="font-weight: 700;">${targetPayment.projectName}</span>
@@ -648,11 +659,11 @@ export default function InstallmentsManager({ user }: { user: User }) {
 
                   <!-- Financial Operation Section -->
                   <div>
-                    <h3 class="font-extrabold uppercase text-sm mb-1.5" style="font-weight: 800; font-size: 13.5px; border-right: 4px solid #8C1932; padding-right: 0.625rem; margin-bottom: 0.375rem; text-align: right; color: #8C1932;">
+                    <h3 class="font-extrabold uppercase text-xs mb-1" style="font-weight: 800; font-size: 12.5px; border-right: 4px solid #8C1932; padding-right: 0.5rem; margin-bottom: 0.25rem; text-align: right; color: #8C1932;">
                       | ٣. تفاصيل وعناصر الحركة المالية
                     </h3>
-                    <div class="space-y-2 bg-slate-50/50 p-3 rounded-lg border" style="display: flex; flex-direction: column; gap: 0.5rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
-                      <div class="grid grid-cols-2 gap-4" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="space-y-1.5 bg-slate-50/50 p-2.5 rounded-lg border" style="display: flex; flex-direction: column; gap: 0.4rem; background-color: rgba(248, 250, 252, 0.5); padding: 0.6rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: right;">
+                      <div class="grid grid-cols-2 gap-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                         <p style="margin: 0;">
                           <span class="text-slate-500" style="color: #64748b;">طبيعة الدفعة: </span>
                           <span class="font-extrabold text-black" style="font-weight: 800;">${targetPayment.paymentNature}</span>
@@ -663,14 +674,14 @@ export default function InstallmentsManager({ user }: { user: User }) {
                         </p>
                       </div>
                       
-                      <div class="h-[1px] bg-slate-200 my-1" style="height: 1px; background-color: #cbd5e1; margin: 0.25rem 0;"></div>
+                      <div class="h-[1px] bg-slate-200 my-0.5" style="height: 1px; background-color: #cbd5e1; margin: 0.15rem 0;"></div>
                       
-                      <p class="text-lg font-black text-black" style="font-size: 16px; font-weight: 900; margin: 0.25rem 0 0 0;">
-                        <span class="text-slate-500 text-xs font-bold font-sans" style="color: #64748b; font-size: 12px; font-weight: 700;">المبلغ المستلم (بالأرقام): </span>
-                        <span class="font-mono" style="font-size: 18px; color: #8C1932;">${currentPaymentFormatted} دج</span>
+                      <p class="text-lg font-black text-black" style="font-size: 14.5px; font-weight: 900; margin: 0.15rem 0 0 0;">
+                        <span class="text-slate-500 text-[11px] font-bold font-sans" style="color: #64748b; font-size: 11px; font-weight: 700;">المبلغ المستلم (بالأرقام): </span>
+                        <span class="font-mono" style="font-size: 16px; color: #8C1932;">${currentPaymentFormatted} دج</span>
                       </p>
-                      <p class="text-slate-880 mt-1 font-medium italic" style="font-size: 12px; color: #1e293b; font-weight: 500; font-style: italic; margin: 0.25rem 0 0 0;">
-                        <span class="text-slate-500 text-xs font-bold" style="color: #64748b; font-size: 12px; font-weight: 700;">المبلغ المستلم (بالحروف): </span>
+                      <p class="text-slate-880 mt-0.5 font-medium italic" style="font-size: 12px; color: #1e293b; font-weight: 500; font-style: italic; margin: 0.15rem 0 0 0;">
+                        <span class="text-slate-500 text-[11px] font-bold" style="color: #64748b; font-size: 11px; font-weight: 700;">المبلغ المستلم (بالحروف): </span>
                         <span>${targetPayment.currentPaymentArabic}</span>
                       </p>
                     </div>
@@ -678,36 +689,36 @@ export default function InstallmentsManager({ user }: { user: User }) {
 
                   <!-- Updated Balances Section (Accounting Table) -->
                   <div>
-                    <h3 class="font-extrabold uppercase text-sm mb-1.5" style="font-weight: 800; font-size: 13.5px; border-right: 4px solid #8C1932; padding-right: 0.625rem; margin-bottom: 0.375rem; text-align: right; color: #8C1932;">
+                    <h3 class="font-extrabold uppercase text-xs mb-1" style="font-weight: 800; font-size: 12.5px; border-right: 4px solid #8C1932; padding-right: 0.5rem; margin-bottom: 0.25rem; text-align: right; color: #8C1932;">
                       | ٤. كشف الوضعية المالية المحدثة للزبون
                     </h3>
-                    <table class="w-full text-sm border-collapse" style="width: 100%; border-collapse: collapse; margin-top: 0.25rem; border: 1px solid #e2e8f0;">
+                    <table class="w-full text-xs border-collapse" style="width: 100%; border-collapse: collapse; margin-top: 0.15rem; border: 1px solid #e2e8f0;">
                       <thead>
                         <tr class="bg-slate-50 text-slate-700" style="background-color: #f8fafc; border-bottom: 2px solid #8C1932;">
-                          <th class="py-2 px-4 text-right font-bold text-xs" style="padding: 0.5rem 1rem; text-align: right; font-size: 11px;">البيان التفصيلي للوضعية الحسابية</th>
-                          <th class="py-2 px-4 text-left font-bold text-xs" style="padding: 0.5rem 1rem; text-align: left; font-size: 11px; font-family: monospace;">القيمة الحسابية (دينار جزائري)</th>
+                          <th class="py-1.5 px-3 text-right font-bold text-[10.5px]" style="padding: 0.35rem 0.75rem; text-align: right; font-size: 10.5px;">البيان التفصيلي للوضعية الحسابية</th>
+                          <th class="py-1.5 px-3 text-left font-bold text-[10.5px]" style="padding: 0.35rem 0.75rem; text-align: left; font-size: 10.5px; font-family: monospace;">القيمة الحسابية (دينار جزائري)</th>
                         </tr>
                       </thead>
-                      <tbody class="divide-y divide-slate-100 text-slate-800" style="color: #1e293b;">
+                      <tbody class="divide-y divide-slate-100 text-slate-800" style="color: #1e293b; font-size: 11px;">
                         <tr class="border-b" style="border-bottom: 1px solid #e2e8f0;">
-                          <td class="py-2 px-4 text-right" style="padding: 0.5rem 1rem; text-align: right;">۱. السعر الإجمالي للشقة المتعاقد عليها</td>
-                          <td class="py-2 px-4 text-left font-mono font-bold" style="padding: 0.5rem 1rem; text-align: left; font-family: monospace; font-weight: 700;">${totalPriceFormatted} دج</td>
+                          <td class="py-1.5 px-3 text-right" style="padding: 0.35rem 0.75rem; text-align: right;">۱. السعر الإجمالي للشقة المتعاقد عليها</td>
+                          <td class="py-1.5 px-3 text-left font-mono font-bold" style="padding: 0.35rem 0.75rem; text-align: left; font-family: monospace; font-weight: 700;">${totalPriceFormatted} دج</td>
                         </tr>
                         <tr class="border-b" style="border-bottom: 1px solid #e2e8f0;">
-                          <td class="py-2 px-4 text-right" style="padding: 0.5rem 1rem; text-align: right;">۲. مجموع المقبوضات والمدفوعات السابقة</td>
-                          <td class="py-2 px-4 text-left font-mono font-medium text-slate-600" style="padding: 0.5rem 1rem; text-align: left; font-family: monospace; font-weight: 500; color: #475569;">${Number(targetPayment.previousPaid).toLocaleString()} دج</td>
+                          <td class="py-1.5 px-3 text-right" style="padding: 0.35rem 0.75rem; text-align: right;">۲. مجموع المقبوضات والمدفوعات السابقة</td>
+                          <td class="py-1.5 px-3 text-left font-mono font-medium text-slate-600" style="padding: 0.35rem 0.75rem; text-align: left; font-family: monospace; font-weight: 500; color: #475569;">${Number(targetPayment.previousPaid).toLocaleString()} دج</td>
                         </tr>
                         <tr class="border-b" style="border-bottom: 1px solid #e2e8f0;">
-                          <td class="py-2 px-4 text-right" style="padding: 0.5rem 1rem; text-align: right;">۳. القيمة النقدية المقبوضة بموجب هذا الوصل لليوم</td>
-                          <td class="py-2 px-4 text-left font-mono font-bold text-slate-900" style="padding: 0.5rem 1rem; text-align: left; font-family: monospace; font-weight: 750;">${currentPaymentFormatted} دج</td>
+                          <td class="py-1.5 px-3 text-right" style="padding: 0.35rem 0.75rem; text-align: right;">۳. القيمة النقدية المقبوضة بموجب هذا الوصل لليوم</td>
+                          <td class="py-1.5 px-3 text-left font-mono font-bold text-slate-900" style="padding: 0.35rem 0.75rem; text-align: left; font-family: monospace; font-weight: 750;">${currentPaymentFormatted} دج</td>
                         </tr>
                         <tr class="border-b bg-emerald-50/40" style="border-bottom: 1px solid #e2e8f0; background-color: rgba(240, 253, 250, 0.4);">
-                          <td class="py-2 px-4 text-right font-bold text-emerald-850" style="padding: 0.5rem 1rem; text-align: right; font-weight: 700; color: #065f46;">٤. إجمالي المبالغ والمدفوعات التراكمية المحصلة</td>
-                          <td class="py-2 px-4 text-left font-mono font-black text-emerald-850" style="padding: 0.5rem 1rem; text-align: left; font-family: monospace; font-weight: 900; color: #065f46;">${totalPaidFormatted} دج</td>
+                          <td class="py-1.5 px-3 text-right font-bold text-emerald-850" style="padding: 0.35rem 0.75rem; text-align: right; font-weight: 700; color: #065f46;">٤. إجمالي المبالغ والمدفوعات التراكمية المحصلة</td>
+                          <td class="py-1.5 px-3 text-left font-mono font-black text-emerald-850" style="padding: 0.35rem 0.75rem; text-align: left; font-family: monospace; font-weight: 900; color: #065f46;">${totalPaidFormatted} دج</td>
                         </tr>
                         <tr style="background-color: rgba(140, 25, 50, 0.05);">
-                          <td class="py-2 px-4 text-right font-bold text-rose-850" style="padding: 0.5rem 1rem; text-align: right; font-weight: 700; color: #8C1932;">٥. الرصيد المالي المتبقي بذمة المشتري</td>
-                          <td class="py-2 px-4 text-left font-mono font-black" style="padding: 0.5rem 1rem; text-align: left; font-family: monospace; font-weight: 900; color: #8C1932;">${remainingBalanceFormatted} دج</td>
+                          <td class="py-1.5 px-3 text-right font-bold text-rose-850" style="padding: 0.35rem 0.75rem; text-align: right; font-weight: 700; color: #8C1932;">٥. الرصيد المالي المتبقي بذمة المشتري</td>
+                          <td class="py-1.5 px-3 text-left font-mono font-black" style="padding: 0.35rem 0.75rem; text-align: left; font-family: monospace; font-weight: 900; color: #8C1932;">${remainingBalanceFormatted} دج</td>
                         </tr>
                       </tbody>
                     </table>
@@ -716,25 +727,32 @@ export default function InstallmentsManager({ user }: { user: User }) {
                 </div>
 
                 <!-- Legal Clause and Signatures -->
-                <div class="mt-4 pt-3 border-t border-slate-200" style="border-top: 1px solid #cbd5e1; padding-top: 0.75rem; margin-top: auto; text-align: right;">
-                  <p class="text-[10px] text-slate-500 text-justify italic mb-4" style="font-size: 10px; color: #64748b; font-style: italic; text-align: justify; margin-bottom: 1rem; margin-top: 0;">
+                <div class="mt-2 pt-2 border-t border-slate-200" style="border-top: 1px solid #cbd5e1; padding-top: 0.5rem; margin-top: auto; text-align: right;">
+                  <p class="text-[9.5px] text-slate-500 text-justify italic mb-3" style="font-size: 9.5px; color: #64748b; font-style: italic; text-align: justify; margin-bottom: 0.75rem; margin-top: 0;">
                     *ملاحظة قانونية واحترازية: هذا السند المالي يمثل إبراء ذمة مالية جزئية بقيمة المبلغ المسدد والمقبوض أعلاه لليوم، ولا يسلم ولا يقوم مقام سندات نقل الملكية العقارية النهائية.*
                   </p>
                   
-                  <div class="grid grid-cols-2 gap-8 text-center text-sm font-bold" style="display: grid; grid-template-cols: 1fr 1fr; gap: 2rem; text-align: center; font-size: 13px; font-weight: 700; margin-bottom: 0.5rem;">
+                  <div class="grid grid-cols-2 gap-8 text-center text-xs font-bold" style="display: grid; grid-template-cols: 1fr 1fr; gap: 2rem; text-align: center; font-size: 11.5px; font-weight: 700; margin-bottom: 0.25rem;">
                     <div>
                       <p class="font-extrabold underline" style="text-decoration: underline; font-weight: 800; margin: 0;">بصمة وإمضاء الزبون</p>
                     </div>
                     <div>
                       <p class="font-extrabold underline" style="text-decoration: underline; font-weight: 800; margin: 0;">توقيع ومهر المؤسسة</p>
-                      <p class="text-xs text-slate-500" style="font-size: 11px; color: #64748b; font-weight: normal; margin: 3px 0 0 0;">م. نجار عبد الغني</p>
+                      <p class="text-xs text-slate-500" style="font-size: 10px; color: #64748b; font-weight: normal; margin: 3px 0 0 0;">م. نجار عبد الغني</p>
                     </div>
                   </div>
                 </div>
 
-                <!-- Footer page number -->
-                <div class="contract-footer text-center text-[9px] text-slate-400" style="text-align: center; font-size: 9px; color: #94a3b8; margin-top: 1rem; border-t: 1px dotted #e2e8f0; padding-top: 0.5rem;">
-                  CONFORT IMMOBILIERE • وصل استلام مالي مستند محاسبي جزئي مفرز • برج الكيفان
+                <!-- Bottom Decorative Burgundy Line & Page Number Grouped (Absolute at bottom) -->
+                <div style="position: absolute; bottom: 8mm; left: 20mm; right: 20mm; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="border-top: 3.5px solid #8C1932; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; direction: rtl;">
+                    <span style="font-size: 9.5px; color: #475569; font-weight: 700; font-family: 'Cairo', sans-serif;">
+                      CONFORT IMMOBILIERE • وصل استلام مالي مستند محاسبي جزئي مفرز • برج الكيفان
+                    </span>
+                    <span style="font-size: 10px; color: #8C1932; font-weight: 800; font-family: 'Cairo', sans-serif;">
+                      الصفحة ١ من ١
+                    </span>
+                  </div>
                 </div>
 
               </div>
@@ -1273,28 +1291,37 @@ export default function InstallmentsManager({ user }: { user: User }) {
                 
                 {printTemplate === "certificate" ? (
                   /* Live view Certificate styling minimal matching A4 */
-                  <div className="text-xs space-y-4 font-sans text-slate-900 leading-relaxed text-justify">
+                  <div className="text-xs space-y-4 font-sans text-slate-900 leading-relaxed text-right">
                     <div className="flex justify-between border-b pb-2">
-                      <div className="font-bold">مؤسسة كنفور للعقارات</div>
-                      <div className="font-mono">منشور: شهادة أقساط</div>
+                      <div>
+                        <p className="font-bold text-slate-900">شركة كـونـفـور العـقارية</p>
+                        <p className="text-[9px] text-slate-500 font-sans">برج الكيفان • 0772.68.43.63</p>
+                      </div>
+                      <div className="text-left font-mono text-[10px] text-slate-600 flex flex-col items-end gap-1 font-sans">
+                        <p><strong>رقم وصل التحصيل:</strong> {printCollectionReceiptNo || "غير محدد"}</p>
+                        <p><strong>الرقم التسلسلي:</strong> CR-{printPayment?.id?.substring(0, 8).toUpperCase() || ""}</p>
+                        <p><strong>التاريخ:</strong> {printPayment?.paymentDate || ""}</p>
+                        <p><strong>المرجع التعاقدي:</strong> {printPayment?.contractId ? (printPayment.contractId.length > 10 ? printPayment.contractId.substring(0, 8).toUpperCase() : printPayment.contractId.toUpperCase()) : "غير محدد"}</p>
+                      </div>
                     </div>
-                    <h4 className="text-center font-black text-sm text-black underline py-2">شهادة تسديد أقساط الشقة</h4>
-                    <p>أنا الموقع أدناه السيد <span className="font-bold">نجار عبد الغني</span>، مسير شركة كونفور العقارية، أشهد أني استلمت من الزبون(ة) <span className="font-bold">{printPayment?.customerName || ""}</span> (بطاقة رقم {printPayment?.idNumber || ""}) مبلغاً قدره <span className="font-bold">{(Number(printPayment?.currentPayment) || 0).toLocaleString()} دج</span> ({printPayment?.currentPaymentArabic || ""}).</p>
-                    <p>المبلغ يمثل <span className="font-bold underline">{printPayment?.paymentNature || ""}</span> من شقته من نوع {printPayment?.apartmentType || ""} مبنى {printPayment?.building || ""} طوابق {printPayment?.floor || ""} في مشروع {printPayment?.projectName || ""}.</p>
-                    <p>ويلتزم السيد(ة) بدفع المبلغ المتبقي المقدر بـ <span className="font-bold">{(Number((printPayment?.totalPrice || 0) - ((printPayment?.previousPaid || 0) + (printPayment?.currentPayment || 0))) || 0).toLocaleString()} دج</span>.</p>
+                    <h4 className="text-center font-black text-xs uppercase bg-slate-100 py-1.5 rounded border text-black font-sans">شهادة تسديد أقساط الشقة</h4>
+                    <p className="mt-2 text-right">أنا الموقع أدناه السيد <span className="font-bold">نجار عبد الغني</span>، مسير شركة كونفور العقارية، أشهد أني استلمت من الزبون(ة) <span className="font-bold">{printPayment?.customerName || ""}</span> (بطاقة رقم {printPayment?.idNumber || ""}) مبلغاً قدره <span className="font-bold">{(Number(printPayment?.currentPayment) || 0).toLocaleString()} دج</span> ({printPayment?.currentPaymentArabic || ""}).</p>
+                    <p className="text-right">المبلغ يمثل <span className="font-bold underline">{printPayment?.paymentNature || ""}</span> من شقته من نوع {printPayment?.apartmentType || ""} مبنى {printPayment?.building || ""} طوابق {printPayment?.floor || ""} في مشروع {printPayment?.projectName || ""}.</p>
+                    <p className="text-right">ويلتزم السيد(ة) بدفع المبلغ المتبقي المقدر بـ <span className="font-bold text-red-700">{(Number((printPayment?.totalPrice || 0) - ((printPayment?.previousPaid || 0) + (printPayment?.currentPayment || 0))) || 0).toLocaleString()} دج</span>.</p>
                   </div>
                 ) : (
                   /* Live view receipt styling */
                   <div className="text-xs space-y-4 font-sans text-slate-900 leading-relaxed text-right">
                     <div className="flex justify-between border-b pb-2">
-                      <div>
+                       <div>
                         <p className="font-bold text-slate-900">مؤسسة كنفور للخدمات العقارية</p>
                         <p className="text-[9px] text-slate-500">برج الكيفان • 0772.68.43.63</p>
                       </div>
-                      <div className="text-left font-mono text-[10px] text-slate-600 flex flex-col items-end gap-1">
+                      <div className="text-left font-mono text-[10px] text-slate-600 flex flex-col items-end gap-1 font-sans">
                         <p><strong>رقم وصل التحصيل:</strong> {printCollectionReceiptNo || "غير محدد"}</p>
                         <p><strong>الرقم التسلسلي:</strong> QU-{printPayment?.id?.substring(0, 8).toUpperCase() || ""}</p>
                         <p><strong>التاريخ:</strong> {printPayment?.paymentDate || ""}</p>
+                        <p><strong>المرجع التعاقدي:</strong> {printPayment?.contractId ? (printPayment.contractId.length > 10 ? printPayment.contractId.substring(0, 8).toUpperCase() : printPayment.contractId.toUpperCase()) : "غير محدد"}</p>
                       </div>
                     </div>
                     <h4 className="text-center font-black text-xs uppercase bg-slate-100 py-1.5 rounded border text-black font-sans">وصل استلام مالي</h4>
@@ -1519,6 +1546,23 @@ export default function InstallmentsManager({ user }: { user: User }) {
                       </select>
                       <p className="text-[11px] text-slate-500">
                         * سيقوم هذا الاختيار تلقائياً بسحب واستيراد كافة معلومات الدفعات وشكل العقارات وهوية الزبون.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Case B dynamic manual contract reference number */}
+                  {creationMode === "case-b" && (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-300">رقم المرجع التعاقدي (لربط المستندات ببعضها):</label>
+                      <input
+                        type="text"
+                        placeholder="مثال: TI4B39XE (أدخل رقم أو رمز العقد لربطه بهذا الوصل)"
+                        className="w-full bg-brand-input border border-white/10 rounded-xl px-4 py-3.5 text-slate-100 focus:ring-2 focus:ring-brand-accent focus:border-transparent outline-none font-mono font-bold text-center tracking-wider"
+                        value={formData.contractId}
+                        onChange={(e) => setFormData({...formData, contractId: e.target.value})}
+                      />
+                      <p className="text-[11px] text-slate-500">
+                        * يرجى إدخال رمز المرجع التعاقدي لتسهيل التبادل وربط سندات الدفع بالعقود الأساسية.
                       </p>
                     </div>
                   )}

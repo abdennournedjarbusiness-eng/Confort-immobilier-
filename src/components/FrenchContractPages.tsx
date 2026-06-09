@@ -717,7 +717,7 @@ export default function FrenchContractPages({
         </div>
 
         <div className="contract-footer z-10 mt-auto">
-          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
           <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">Page 1 sur 8</div>
         </div>
       </div>
@@ -793,7 +793,7 @@ export default function FrenchContractPages({
         </div>
         
         <div className="contract-footer z-10 mt-auto">
-          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
           <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">Page 2 sur 8</div>
         </div>
       </div>
@@ -893,7 +893,7 @@ export default function FrenchContractPages({
         </div>
         
         <div className="contract-footer z-10 mt-auto">
-          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
           <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">Page 3 sur 8</div>
         </div>
       </div>
@@ -934,7 +934,7 @@ export default function FrenchContractPages({
         </div>
         
         <div className="contract-footer z-10 mt-auto">
-          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
           <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">Page 4 sur 8</div>
         </div>
       </div>
@@ -1018,7 +1018,7 @@ export default function FrenchContractPages({
         </div>
         
         <div className="contract-footer z-10 mt-auto">
-          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
           <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">Page 5 sur 8</div>
         </div>
       </div>
@@ -1123,7 +1123,7 @@ export default function FrenchContractPages({
         </div>
         
         <div className="contract-footer z-10 mt-auto">
-          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
           <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">Page 6 sur 8</div>
         </div>
       </div>
@@ -1156,7 +1156,7 @@ export default function FrenchContractPages({
         </div>
         
         <div className="contract-footer z-10 mt-auto">
-          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
           <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">Page 7 sur 8</div>
         </div>
       </div>
@@ -1206,7 +1206,7 @@ export default function FrenchContractPages({
         </div>
         
         <div className="contract-footer z-10 mt-auto">
-          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#065f46' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
+          <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
           <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">Page 8 sur 8</div>
         </div>
       </div>

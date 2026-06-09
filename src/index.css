@@ -89,3 +89,34 @@
     }
   }
 }
+
+/* Custom Emerald-to-Burgundy (#8C1932) overrides inside contract pages */
+.contract-page .text-emerald-950,
+.contract-page .text-emerald-900,
+.contract-page .text-emerald-800,
+.contract-page .text-emerald-700,
+.contract-page .text-emerald-850 {
+  color: #8C1932 !important;
+}
+
+.contract-page .border-emerald-800,
+.contract-page .border-emerald-800\/80,
+.contract-page .border-emerald-800\/30,
+.contract-page .border-emerald-800\/10,
+.contract-page .border-emerald-905\/20,
+.contract-page .border-emerald-900\/20 {
+  border-color: #8C1932 !important;
+}
+
+.contract-page .bg-emerald-50\/20,
+.contract-page .bg-emerald-50\/10,
+.contract-page .bg-emerald-50\/5,
+.contract-page .bg-emerald-50\/50 {
+  background-color: rgba(140, 25, 50, 0.05) !important;
+}
+
+.contract-page .bg-emerald-800,
+.contract-page .bg-emerald-900,
+.contract-page .bg-emerald-950 {
+  background-color: #8C1932 !important;
+}
