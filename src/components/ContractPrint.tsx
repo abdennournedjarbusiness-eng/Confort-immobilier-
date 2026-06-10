@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import { Contract } from "../types";
-import { Printer, ArrowLeft, ArrowRight, FileDown as FileWord } from "lucide-react";
+import { Printer, ArrowLeft, ArrowRight, FileDown as FileWord, Plus, Trash2, Coins, Save, ArrowLeftRight, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, PageBreak, Table, TableRow, TableCell, WidthType, BorderStyle, Footer, PageNumber } from "docx";
 import logo from "../assets/images/official_logo_burgundy_1779040261704.png";
@@ -14,6 +14,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import FrenchContractPages from "./FrenchContractPages";
 import AnnexPages from "./AnnexPages";
+import InstallmentsScheduleAnnex from "./InstallmentsScheduleAnnex";
 import { generateReference } from "../lib/referenceGenerator";
 
 export interface GroupedClauses {
@@ -157,8 +158,117 @@ export default function ContractPrint() {
   const [projectCodeInput, setProjectCodeInput] = useState("CNF");
   const [clientNumInput, setClientNumInput] = useState("101");
 
+  // Document management states
+  const [activeDocTab, setActiveDocTab] = useState<"contract" | "notary" | "schedule">("contract");
+  const showAnnex = activeDocTab === "notary";
+
+  // Installments Hybrid Scheduler States
+  const [totalPriceInput, setTotalPriceInput] = useState<number>(0);
+  const [firstPaymentInput, setFirstPaymentInput] = useState<number>(0);
+  const [startDateInput, setStartDateInput] = useState<string>("");
+  const [standardInstallmentInput, setStandardInstallmentInput] = useState<number>(1240000);
+  const [periodicityInput, setPeriodicityInput] = useState<string>("3");
+  const [installmentsList, setInstallmentsList] = useState<Array<{
+    index: number;
+    label: string;
+    amount: number;
+    date: string;
+  }>>([]);
+
+  const generateScheduleList = (
+    totalP: number,
+    firstP: number,
+    startD: string,
+    standardInst: number,
+    periodicityStr: string
+  ) => {
+    const remainingToDivide = totalP - firstP;
+    if (remainingToDivide <= 0) {
+      return [{
+        index: 1,
+        label: "الدفعة الأولى (التسبيق كامل)",
+        amount: totalP,
+        date: startD,
+      }];
+    }
+
+    const items = [];
+    items.push({
+      index: 1,
+      label: "الدفعة الأولى (التسبيق)",
+      amount: firstP,
+      date: startD,
+    });
+
+    if (standardInst <= 0) {
+      items.push({
+        index: 2,
+        label: "قسط التصفية النهائي",
+        amount: remainingToDivide,
+        date: startD,
+      });
+      return items;
+    }
+
+    let remaining = remainingToDivide;
+    let currentDate = new Date(startD);
+    if (isNaN(currentDate.getTime())) {
+      currentDate = new Date();
+    }
+    let idx = 2;
+    const periodMonths = parseInt(periodicityStr, 10) || 3;
+
+    while (remaining > 0) {
+      let currentAmount = 0;
+      if (remaining > standardInst) {
+        currentAmount = standardInst;
+      } else {
+        currentAmount = remaining;
+      }
+
+      currentDate.setMonth(currentDate.getMonth() + periodMonths);
+      const dateString = currentDate.toISOString().split("T")[0];
+
+      items.push({
+        index: idx,
+        label: remaining > standardInst ? `القسط رقم ${idx - 1}` : "قسط التصفية النهائي",
+        amount: currentAmount,
+        date: dateString,
+      });
+
+      remaining -= currentAmount;
+      idx++;
+    }
+
+    return items;
+  };
+
+  // Load and sync installments schedule when contract changes
+  useEffect(() => {
+    if (!contract) return;
+    if (contract.installmentsSchedule) {
+      setTotalPriceInput(contract.installmentsSchedule.totalPrice ?? contract.totalPrice ?? 0);
+      setFirstPaymentInput(contract.installmentsSchedule.firstPayment ?? 0);
+      setStartDateInput(contract.installmentsSchedule.startDate ?? contract.signingDate ?? new Date().toISOString().split("T")[0]);
+      setStandardInstallmentInput(contract.installmentsSchedule.standardInstallment ?? 1240000);
+      setPeriodicityInput(contract.installmentsSchedule.periodicity ?? "3");
+      setInstallmentsList(contract.installmentsSchedule.items ?? []);
+    } else {
+      const totalP = contract.totalPrice || 0;
+      const firstP = contract.reservation?.exists ? (contract.reservation.amount + contract.downPayment) : contract.downPayment;
+      const startD = contract.signingDate || new Date().toISOString().split("T")[0];
+      setTotalPriceInput(totalP);
+      setFirstPaymentInput(firstP);
+      setStartDateInput(startD);
+      setStandardInstallmentInput(1240000);
+      setPeriodicityInput("3");
+      
+      const initialList = generateScheduleList(totalP, firstP, startD, 1240000, "3");
+      setInstallmentsList(initialList);
+    }
+  }, [contract]);
+
   // Annex-specific dynamic settings
-  const [showAnnex, setShowAnnex] = useState(false);
   const [contractType, setContractType] = useState<string>("الوعد بالبيع");
   const [customContractType, setCustomContractType] = useState<string>("");
   const [annexFormat, setAnnexFormat] = useState<"percent" | "lump">("percent");
@@ -2190,6 +2300,28 @@ export default function ContractPrint() {
     saveAs(blob, `Avenant_Notaire_${contract.customerName}.docx`);
   };
 
+  const handleSaveInstallmentsSchedule = async () => {
+    if (!id) return;
+    try {
+      const docRef = doc(db, "contracts", id);
+      await updateDoc(docRef, {
+        installmentsSchedule: {
+          totalPrice: totalPriceInput,
+          firstPayment: firstPaymentInput,
+          startDate: startDateInput,
+          standardInstallment: standardInstallmentInput,
+          periodicity: periodicityInput,
+          items: installmentsList,
+        },
+        updatedAt: serverTimestamp(),
+      });
+      alert("✓ تم حفظ كروكي ورزنامة الأقساط بنجاح في قاعدة بيانات العقد على السيرفر (Firestore)!");
+    } catch (err) {
+      console.error("Error saving installments schedule:", err);
+      alert("حدث خطأ أثناء حفظ جدول الأقساط وقيم الملحق الثاني.");
+    }
+  };
+
   const downloadWord = async () => {
     if (!contract) return;
     if (showAnnex) {
@@ -2996,11 +3128,11 @@ export default function ContractPrint() {
       {/* Document Tab Selector & Annex Settings */}
       <div className="max-w-7xl mx-auto px-4 mb-4 no-print w-full" dir="rtl">
         <div className="bg-brand-card border border-white/5 p-4 rounded-2xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => setShowAnnex(false)}
-              className={`px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all ${
-                !showAnnex
+              onClick={() => setActiveDocTab("contract")}
+              className={`px-4 md:px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all ${
+                activeDocTab === "contract"
                   ? "bg-brand-accent text-black shadow-md font-arabic"
                   : "bg-brand-input text-slate-400 hover:text-slate-200 font-arabic"
               }`}
@@ -3008,21 +3140,33 @@ export default function ContractPrint() {
               العقد الأصلي (Original Contract)
             </button>
             <button
-              onClick={() => setShowAnnex(true)}
-              className={`px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-2 ${
-                showAnnex
+              onClick={() => setActiveDocTab("notary")}
+              className={`px-4 md:px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-2 ${
+                activeDocTab === "notary"
                   ? "bg-brand-accent text-black shadow-md font-arabic"
                   : "bg-brand-input text-slate-400 hover:text-slate-200 font-arabic"
               }`}
             >
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
               ملحق أتعاب التوثيق (Notary Annex)
+            </button>
+            <button
+              onClick={() => setActiveDocTab("schedule")}
+              className={`px-4 md:px-6 py-3 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-2 ${
+                activeDocTab === "schedule"
+                  ? "bg-brand-accent text-black shadow-md font-arabic"
+                  : "bg-brand-input text-slate-400 hover:text-slate-200 font-arabic"
+              }`}
+            >
+              <span className="w-2 h-2 bg-amber-500 rounded-full animate-ping"></span>
+              ملحق رزنامة الأقساط (Installments Annex)
             </button>
           </div>
           
           <div className="text-slate-400 text-xs text-center md:text-right font-arabic">
-            {showAnnex ? (
-              <span className="text-emerald-400 font-bold">✓ أنت الآن تستعرض ملحق تحديد نسب تحمل أتعاب التوثيق.</span>
+            {activeDocTab === "notary" ? (
+              <span className="text-emerald-400 font-bold">✓ أنت الآن تستعرض ملحق تحديد نسب تحمل أتعاب التوثيق (ملحق رقم 01).</span>
+            ) : activeDocTab === "schedule" ? (
+              <span className="text-amber-400 font-bold">✓ أنت الآن تستعرض ملحق رزنامة الأقساط للدفن الذكي (ملحق رقم 02).</span>
             ) : (
               <span>أنت تستعرض العقد الأصلي الرئيسي كنفور.</span>
             )}
@@ -3200,6 +3344,334 @@ export default function ContractPrint() {
         </div>
       )}
 
+      {activeDocTab === "schedule" && (
+        <div className="max-w-7xl mx-auto px-4 mb-6 no-print w-full animate-fadeIn" dir="rtl">
+          <div className="bg-brand-card border border-amber-500/20 rounded-2xl p-6 shadow-2xl relative overflow-hidden space-y-6">
+            <div className="absolute top-0 right-0 w-1.5 h-full bg-amber-500 animate-pulse"></div>
+            
+            <div className="border-b border-white/5 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-100 flex items-center gap-2 mb-1 font-arabic">
+                  <Coins className="w-5 h-5 text-amber-500 font-bold" />
+                  محرك جدولة وفترة استحقاق الأقساط الهجين (ملحق رقم 02)
+                </h3>
+                <p className="text-slate-400 text-xs md:text-sm font-arabic font-normal">
+                  يوفر هذا المحول سرعة التوليد الآلي الفوري بناءً على المعطيات الرياضية، مع منحك الصلاحية للتعديل اليدوي المطلق على قيم وتواريخ كل قسط!
+                </p>
+              </div>
+              
+              <button
+                type="button"
+                onClick={handleSaveInstallmentsSchedule}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-5 rounded-xl text-xs flex items-center gap-2 shadow-lg transition-all border border-emerald-500/30"
+              >
+                <Save className="w-4 h-4" />
+                حفظ الرزنامة في العقد (Firestore)
+              </button>
+            </div>
+
+            {/* SECTION 1: Parameters Input (مدخلات التوليد السريع) */}
+            <div className="bg-brand-input/30 border border-white/5 p-4 rounded-xl space-y-4">
+              <span className="text-xs font-bold text-amber-400 font-arabic flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                المرحلة الأولى: بارامترات التوليد السريع البدئي
+              </span>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* Total Price */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">إجمالي سعر الشقة (دج):</label>
+                  <input
+                    type="number"
+                    value={totalPriceInput}
+                    onChange={(e) => setTotalPriceInput(Number(e.target.value) || 0)}
+                    className="w-full bg-brand-input border border-white/15 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-center"
+                  />
+                </div>
+
+                {/* First Payment */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">الدفعة الأولى / التسبيق (دج):</label>
+                  <input
+                    type="number"
+                    value={firstPaymentInput}
+                    onChange={(e) => setFirstPaymentInput(Number(e.target.value) || 0)}
+                    className="w-full bg-brand-input border border-white/15 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-center"
+                  />
+                </div>
+
+                {/* Start Date */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">تاريخ أول دفعة:</label>
+                  <input
+                    type="date"
+                    value={startDateInput}
+                    onChange={(e) => setStartDateInput(e.target.value)}
+                    className="w-full bg-brand-input border border-white/15 rounded-xl px-3 py-2 text-xs font-bold text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-center"
+                  />
+                </div>
+
+                {/* Standard Installment Price */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">قيمة القسط الدوري الثابت (دج):</label>
+                  <input
+                    type="number"
+                    value={standardInstallmentInput}
+                    onChange={(e) => setStandardInstallmentInput(Number(e.target.value) || 0)}
+                    className="w-full bg-brand-input border border-white/15 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-center"
+                    placeholder="مثال: 1240000"
+                  />
+                </div>
+
+                {/* Periodicity Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5 font-arabic">دورية الدفع الاسترشادية:</label>
+                  <select
+                    value={periodicityInput}
+                    onChange={(e) => setPeriodicityInput(e.target.value)}
+                    className="w-full bg-brand-input border border-white/15 rounded-xl px-3 py-2 text-xs font-bold text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-accent/50 text-right font-arabic"
+                  >
+                    <option value="1">كل شهر (شهرياً)</option>
+                    <option value="3">كل 3 أشهر (فصلياً - ربع سنوي)</option>
+                    <option value="6">كل 6 أشهر (نصف سنوي)</option>
+                    <option value="12">كل سنة (سنوياً)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const generated = generateScheduleList(totalPriceInput, firstPaymentInput, startDateInput, standardInstallmentInput, periodicityInput);
+                    setInstallmentsList(generated);
+                  }}
+                  className="bg-amber-600 hover:bg-amber-500 text-black font-black py-2 px-5 rounded-xl text-xs flex items-center gap-2 transition-all shadow-md"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  توليد وإعادة ضبط الرزنامة التلقائية الآن
+                </button>
+              </div>
+            </div>
+
+            {/* SECTION 2: Dynamic Editable Data Grid (جدول المخرجات الديناميكي للتعديل اليدوي) */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-emerald-400 font-arabic flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  المرحلة الثانية: جدول الأقساط النشط والتسويات الديناميكية المباشرة
+                </span>
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextIndex = installmentsList.length + 1;
+                    const lastItem = installmentsList[installmentsList.length - 1];
+                    let nextDate = startDateInput;
+                    if (lastItem) {
+                      const tempDate = new Date(lastItem.date);
+                      if (!isNaN(tempDate.getTime())) {
+                        tempDate.setMonth(tempDate.getMonth() + (parseInt(periodicityInput, 10) || 3));
+                        nextDate = tempDate.toISOString().split("T")[0];
+                      }
+                    }
+
+                    const newItem = {
+                      index: nextIndex,
+                      label: `القسط رقم ${nextIndex - 1}`,
+                      amount: standardInstallmentInput > 0 ? standardInstallmentInput : 100000,
+                      date: nextDate,
+                    };
+
+                    const listCopy = [...installmentsList];
+                    if (listCopy.length > 1) {
+                      listCopy.splice(listCopy.length - 1, 0, newItem);
+                    } else {
+                      listCopy.push(newItem);
+                    }
+
+                    const indexed = listCopy.map((item, idx) => ({ ...item, index: idx + 1 }));
+
+                    // Trigger reactively a rebalance
+                    const sumOfOthers = indexed.slice(0, -1).reduce((sum, item) => sum + item.amount, 0);
+                    const lastAmt = totalPriceInput - sumOfOthers;
+                    indexed[indexed.length - 1].amount = Math.max(0, lastAmt);
+
+                    setInstallmentsList(indexed);
+                  }}
+                  className="bg-brand-input hover:bg-white/10 text-slate-200 hover:text-white border border-white/10 font-bold py-1.5 px-3 rounded-lg text-[11px] flex items-center gap-1.5 transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                  إضافة قسط مالي مخصص (+)
+                </button>
+              </div>
+
+              <div className="overflow-x-auto border border-white/10 rounded-xl">
+                <table className="w-full text-xs text-right border-collapse">
+                  <thead>
+                    <tr className="bg-brand-input/60 text-slate-300 font-bold border-b border-white/10">
+                      <th className="p-2.5 text-center w-12">N°</th>
+                      <th className="p-2.5">بيان ونوع دفعة القسط</th>
+                      <th className="p-2.5 text-center">تاريخ الاستحقاق الدقيق</th>
+                      <th className="p-2.5 text-center">مبلغ القسط الحالي (دج)</th>
+                      <th className="p-2.5 text-center text-red-400">الباقي بعد السداد تلقائياً (دج)</th>
+                      <th className="p-2.5 text-center w-16">إدارة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      let runningSum = 0;
+                      return installmentsList.map((item, index) => {
+                        runningSum += item.amount;
+                        const remainder = Math.max(0, totalPriceInput - runningSum);
+                        const isLastItem = index === installmentsList.length - 1;
+
+                        return (
+                          <tr key={item.index} className="border-b border-white/5 hover:bg-brand-input/20 transition-all">
+                            <td className="p-2.5 text-center font-mono font-bold text-slate-400">{index + 1}</td>
+                            
+                            {/* Label Description */}
+                            <td className="p-2.5">
+                              <input
+                                type="text"
+                                value={item.label}
+                                onChange={(e) => {
+                                  const updated = installmentsList.map((x) =>
+                                    x.index === item.index ? { ...x, label: e.target.value } : x
+                                  );
+                                  setInstallmentsList(updated);
+                                }}
+                                className="bg-brand-input/40 border border-white/10 hover:border-white/20 focus:border-brand-accent rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none w-full font-arabic font-semibold"
+                              />
+                            </td>
+
+                            {/* Date Picker */}
+                            <td className="p-2.5 text-center">
+                              <input
+                                type="date"
+                                value={item.date}
+                                onChange={(e) => {
+                                  const updated = installmentsList.map((x) =>
+                                    x.index === item.index ? { ...x, date: e.target.value } : x
+                                  );
+                                  setInstallmentsList(updated);
+                                }}
+                                className="bg-brand-input/40 border border-white/10 focus:border-brand-accent rounded-lg px-2 py-1 text-center text-xs font-mono font-bold text-slate-100 focus:outline-none"
+                              />
+                            </td>
+
+                            {/* Amount Input with Reactive balancing */}
+                            <td className="p-2.5 text-center font-mono">
+                              <div className="relative inline-flex items-center">
+                                <input
+                                  type="number"
+                                  value={item.amount}
+                                  readOnly={isLastItem && installmentsList.length > 1}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value) || 0;
+                                    
+                                    const updated = installmentsList.map((x) => {
+                                      if (x.index === item.index) {
+                                        return { ...x, amount: val };
+                                      }
+                                      return x;
+                                    });
+
+                                    if (updated.length > 1) {
+                                      const lastItemObj = updated[updated.length - 1];
+                                      const sumOfOthers = updated.slice(0, -1).reduce((sum, x) => sum + x.amount, 0);
+                                      const newLastAmt = totalPriceInput - sumOfOthers;
+                                      
+                                      const finalUpdated = updated.map((x) => {
+                                        if (x.index === lastItemObj.index) {
+                                          return { ...x, amount: Math.max(0, newLastAmt) };
+                                        }
+                                        return x;
+                                      });
+                                      setInstallmentsList(finalUpdated);
+                                    } else {
+                                      setInstallmentsList(updated);
+                                    }
+                                  }}
+                                  className={`border focus:outline-none rounded-lg px-2 py-1 text-center text-xs font-mono font-bold text-slate-100 sm:w-36 ${
+                                    isLastItem && installmentsList.length > 1
+                                      ? "bg-amber-500/10 border-amber-500/20 text-brand-accent cursor-not-allowed font-extrabold"
+                                      : "bg-brand-input/40 border-white/10 focus:border-brand-accent hover:border-white/20"
+                                  }`}
+                                />
+                                {isLastItem && installmentsList.length > 1 && (
+                                  <span className="absolute left-1 text-[9px] text-amber-500 font-bold px-1 select-none font-arabic">دفعة تصفية</span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Live Balance */}
+                            <td className="p-2.5 text-center font-mono font-bold text-slate-300">
+                              {remainder.toLocaleString()} دج
+                            </td>
+
+                            {/* Actions (Delete icon) */}
+                            <td className="p-2.5 text-center">
+                              <button
+                                type="button"
+                                disabled={index === 0 || isLastItem}
+                                onClick={() => {
+                                  let filtered = installmentsList.filter((x) => x.index !== item.index);
+                                  filtered = filtered.map((x, idx) => ({ ...x, index: idx + 1 }));
+
+                                  if (filtered.length > 1) {
+                                    const sumOfOthers = filtered.slice(0, -1).reduce((sum, x) => sum + x.amount, 0);
+                                    filtered[filtered.length - 1].amount = Math.max(0, totalPriceInput - sumOfOthers);
+                                  } else if (filtered.length === 1) {
+                                    filtered[0].amount = totalPriceInput;
+                                  }
+
+                                  setInstallmentsList(filtered);
+                                }}
+                                className="p-1 rounded bg-red-950/40 text-red-400 hover:text-red-300 hover:bg-red-900/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="حذف هذا القسط"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Sum compliance and alert notification */}
+            {(() => {
+              const currentTotal = installmentsList.reduce((sum, x) => sum + x.amount, 0);
+              const complianceError = totalPriceInput - currentTotal;
+              return (
+                <div className={`p-4 rounded-xl flex items-center justify-between text-xs font-bold leading-normal ${
+                  Math.abs(complianceError) < 1
+                    ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                    : "bg-red-500/10 border border-red-500/25 text-red-400"
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${Math.abs(complianceError) < 1 ? "bg-emerald-500" : "bg-red-500 animate-pulse"}`}></span>
+                    <span className="font-arabic font-normal">
+                      {Math.abs(complianceError) < 1
+                        ? "✓ حالة الحجم المالي: متوازنة بنسبة 100%. مجموع الأقساط يطابق تماماً سعر الشقة الأصلي."
+                        : `⚠ تحذير عدم مطابقة: مجموع الأقساط (${currentTotal.toLocaleString()} دج) لا يطابق سعر الشقة المتعهد به (${totalPriceInput.toLocaleString()} دج). الفرق التراكمي: ${complianceError.toLocaleString()} دج. يرجى توليد الرزنامة من جديد أو الضبط اليدوي لتصفية الحساب.`}
+                    </span>
+                  </div>
+                  <span className="font-mono text-xs font-semibold">
+                    المجموع: {currentTotal.toLocaleString()} / {totalPriceInput.toLocaleString()} دج
+                  </span>
+                </div>
+              );
+            })()}
+
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-12 print:gap-0 pb-20 items-center overflow-x-auto w-full px-4 sm:px-0 print:px-0 print:pb-0">
         <div id="contract-preview-pages" className="min-w-[210mm] sm:min-w-0 flex flex-col items-center gap-12 print:gap-0 scale-75 md:scale-100 origin-top print:scale-100 print:m-0 print:w-[210mm]">
           {showAnnex ? (
@@ -3219,6 +3691,18 @@ export default function ContractPrint() {
               customAnnexPlace={customAnnexPlace}
               language={language}
               refData={refData}
+            />
+          ) : activeDocTab === "schedule" ? (
+            <InstallmentsScheduleAnnex
+              contract={contract}
+              isRoyal={isRoyal}
+              selectedTemplate={selectedTemplate}
+              language={language}
+              refData={refData}
+              installmentsList={installmentsList}
+              totalPriceInput={totalPriceInput}
+              customAnnexDate={customAnnexDate}
+              customAnnexPlace={customAnnexPlace}
             />
           ) : language === "fr" ? (
             <FrenchContractPages
