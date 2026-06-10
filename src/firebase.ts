@@ -1,10 +1,26 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, enableMultiTabIndexedDbPersistence } from "firebase/firestore";
 import firebaseConfig from "../firebase-applet-config.json";
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+
+// Enable Firestore Multi-Tab Offline Persistence for immediate offline functionality
+enableMultiTabIndexedDbPersistence(db)
+  .then(() => {
+    console.log("Firestore Multi-Tab Persistence Enabled Successfully");
+  })
+  .catch((err) => {
+    if (err.code === "failed-precondition") {
+      console.warn("Firestore offline persistence: multiple tabs open");
+    } else if (err.code === "unimplemented") {
+      console.warn("Firestore offline persistence: unimplemented browser support");
+    } else {
+      console.error("Firestore offline persistence error:", err);
+    }
+  });
+
 export const auth = getAuth(app);
 
 const googleProvider = new GoogleAuthProvider();

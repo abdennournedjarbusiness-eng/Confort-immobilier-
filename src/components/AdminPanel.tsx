@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
+import { useState, useEffect, ChangeEvent } from "react";
+import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs, query, where } from "firebase/firestore";
+import { db, auth } from "../firebase";
 import { TemplateConfig } from "../types";
-import { Save, Plus, Trash2, Settings, FileText, Key as KeyIcon, CheckCircle2 } from "lucide-react";
+import { Save, Plus, Trash2, Settings, FileText, Key as KeyIcon, CheckCircle2, Download, Upload, Wifi, WifiOff, Database, RefreshCw, AlertCircle } from "lucide-react";
 import { motion } from "motion/react";
 import { addSerial } from "../firebase";
 
@@ -20,6 +20,204 @@ export default function AdminPanel() {
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [seededCount, setSeededCount] = useState(0);
+
+  // Connection and Backup state variables
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importLog, setImportLog] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  const handleExportBackup = async () => {
+    setExporting(true);
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        alert("يجب تسجيل الدخول أولاً للقيام بهذه العملية.");
+        return;
+      }
+
+      const backupData: any = {
+        exportedAt: new Date().toISOString(),
+        version: "1.0",
+        contracts: [],
+        payments: [],
+        projects: [],
+        notaries: [],
+        config: null
+      };
+
+      // 1. Get contracts (filtered by current user)
+      const contractsQ = query(collection(db, "contracts"), where("userId", "==", currentUser.uid));
+      const contractsSnap = await getDocs(contractsQ);
+      contractsSnap.forEach((doc) => {
+        backupData.contracts.push({ id: doc.id, ...doc.data() });
+      });
+
+      // 2. Get payments (filtered by current user)
+      const paymentsQ = query(collection(db, "payments"), where("userId", "==", currentUser.uid));
+      const paymentsSnap = await getDocs(paymentsQ);
+      paymentsSnap.forEach((doc) => {
+        backupData.payments.push({ id: doc.id, ...doc.data() });
+      });
+
+      // 3. Get projects
+      const projectsSnap = await getDocs(collection(db, "projects"));
+      projectsSnap.forEach((doc) => {
+        backupData.projects.push({ id: doc.id, ...doc.data() });
+      });
+
+      // 4. Get notaries
+      const notariesSnap = await getDocs(collection(db, "notaries"));
+      notariesSnap.forEach((doc) => {
+        backupData.notaries.push({ id: doc.id, ...doc.data() });
+      });
+
+      // 5. Get config default
+      const configSnap = await getDoc(doc(db, "config", "default"));
+      if (configSnap.exists()) {
+        backupData.config = configSnap.data();
+      }
+
+      // Generate downloadable JSON Blob file
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `confort_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      alert("تم تصدير النسخة الاحتياطية وتحميلها بنجاح!");
+    } catch (error) {
+      console.error("Backup export failed:", error);
+      alert("حدث خطأ أثناء تصدير نسخة احتياطية من البيانات.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImportBackup = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      alert("يجب تسجيل الدخول أولاً للقيام بهذه العملية.");
+      return;
+    }
+
+    if (!window.confirm("تحذير هام: سيقوم هذا الإجراء باستيراد البيانات ودمجها مع البيانات الحالية على سيرفر Firebase وذاكرتك المحلية. هل تود المتابعة؟")) {
+      return;
+    }
+
+    setImporting(true);
+    setImportLog("جاري تحليل ملف النسخة الاحتياطية...");
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const jsonStr = event.target?.result as string;
+        const data = JSON.parse(jsonStr);
+
+        let contractsCount = 0;
+        let paymentsCount = 0;
+        let projectsCount = 0;
+        let notariesCount = 0;
+        let configRestored = false;
+
+        // Import contracts
+        if (data.contracts && Array.isArray(data.contracts)) {
+          setImportLog(`جاري استيراد العقود وتثبيتها (${data.contracts.length})...`);
+          for (const item of data.contracts) {
+            const { id, ...dataPayload } = item;
+            if (id) {
+              // Override userId to ensure it passes security rules validation
+              dataPayload.userId = currentUser.uid;
+              await setDoc(doc(db, "contracts", id), dataPayload);
+              contractsCount++;
+            }
+          }
+        }
+
+        // Import payments
+        if (data.payments && Array.isArray(data.payments)) {
+          setImportLog(`جاري استيراد أقساط ووصولات المشتريين (${data.payments.length})...`);
+          for (const item of data.payments) {
+            const { id, ...dataPayload } = item;
+            if (id) {
+              // Override userId to ensure it passes security rules validation
+              dataPayload.userId = currentUser.uid;
+              await setDoc(doc(db, "payments", id), dataPayload);
+              paymentsCount++;
+            }
+          }
+        }
+
+        // Import projects
+        if (data.projects && Array.isArray(data.projects)) {
+          setImportLog(`جاري استيراد المشاريع العقارية (${data.projects.length})...`);
+          for (const item of data.projects) {
+            const { id, ...dataPayload } = item;
+            if (id) {
+              // Override userId to ensure it passes security rules validation
+              dataPayload.userId = currentUser.uid;
+              await setDoc(doc(db, "projects", id), dataPayload);
+              projectsCount++;
+            }
+          }
+        }
+
+        // Import notaries
+        if (data.notaries && Array.isArray(data.notaries)) {
+          setImportLog(`جاري استيراد وتوثيق الموثقين (${data.notaries.length})...`);
+          for (const item of data.notaries) {
+            const { id, ...dataPayload } = item;
+            if (id) {
+              // Override userId to ensure it passes security rules validation
+              dataPayload.userId = currentUser.uid;
+              await setDoc(doc(db, "notaries", id), dataPayload);
+              notariesCount++;
+            }
+          }
+        }
+
+        // Import config
+        if (data.config) {
+          setImportLog("جاري استعادة التهيئة العامة للإعدادات...");
+          await setDoc(doc(db, "config", "default"), data.config);
+          configRestored = true;
+        }
+
+        setImportLog(
+          `تمت العملية بنجاح! تم استيراد: ${contractsCount} عقود، ${paymentsCount} وصولات دفع، ${projectsCount} مشاريع، ${notariesCount} موثقين، مع استعادة الإعدادات العامة.`
+        );
+        alert("تم استيراد البيانات وتحديث قاعدة البيانات بالكامل!");
+      } catch (err: any) {
+        console.error("Backup import failed:", err);
+        setImportLog(`فشل الاستيراد: ${err.message || String(err)}`);
+        alert("ملف غير صالح أو حدث خطأ أثناء فك التشفير والكتابة.");
+      } finally {
+        setImporting(false);
+      }
+    };
+
+    reader.readAsText(file);
+  };
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -177,6 +375,107 @@ export default function AdminPanel() {
                 </button>
               </motion.div>
             ))}
+          </div>
+        </section>
+
+        {/* Offline Cache and JSON Backups Systems */}
+        <section className="bg-brand-card rounded-3xl p-8 shadow-2xl border border-white/5">
+          <div className="flex items-center gap-2 text-brand-accent font-bold mb-8">
+            <div className="w-1.5 h-6 bg-brand-accent"></div>
+            <span>النسخ الاحتياطي التلقائي ومؤشر الأوفلاين</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Offline indicator card */}
+            <div className="p-6 bg-brand-input rounded-2xl border border-white/5 flex items-center justify-between">
+              <div className="text-right">
+                <p className="text-slate-200 font-bold mb-1">الوضع الحالي وتزامن الأوفلاين</p>
+                <p className="text-slate-400 text-xs">حالة الاتصال بالإنترنت ومزامنة Firestore المحلية النشطة.</p>
+                <div className="flex items-center gap-2 mt-4">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold gap-1 ${
+                    isOnline 
+                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+                    {isOnline ? "متصل بالإنترنت" : "أنت تعمل بأوفلاين"}
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold gap-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                    <Database className="w-3.5 h-3.5" />
+                    تخزين IndexedDB نشط
+                  </span>
+                </div>
+              </div>
+              <div className="p-4 bg-brand-card/50 rounded-xl">
+                {isOnline ? (
+                  <Wifi className="w-10 h-10 text-emerald-400 animate-pulse" />
+                ) : (
+                  <WifiOff className="w-10 h-10 text-amber-400 animate-bounce" />
+                )}
+              </div>
+            </div>
+
+            {/* PWA App installation instructions */}
+            <div className="p-6 bg-brand-input rounded-2xl border border-white/5 flex flex-col justify-between">
+              <div className="text-right">
+                <p className="text-slate-200 font-bold mb-1">تثبيت التطبيق على الجهاز (PWA)</p>
+                <p className="text-slate-400 text-xs text-justify leading-relaxed">
+                  يمكنك تثبيت هذا التطبيق مباشرة على حاسوبك الشخصي أو هاتفك والوصول إليه من سطح المكتب بدون إنترنت كبرنامج مستقل بالكامل! انقر على أيقونة التثبيت في شريط عنوان المتصفح.
+                </p>
+              </div>
+              <div className="mt-3 flex items-center gap-2 text-xs text-brand-accent font-bold font-arabic justify-start">
+                <span>✓ متوافق مع Android, iOS, Chrome, Safari</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 border-t border-white/5 pt-8">
+            <div className="text-right mb-6">
+              <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                <Database className="w-5 h-5 text-brand-accent" /> مزامنة وتصدير الملفات
+              </h3>
+              <p className="text-slate-400 text-xs mt-1">تصدير نسختك الاحتياطية كملف JSON لضمان حماية بياناتك كاملة أو استيرادها على أي جهاز آخر.</p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 justify-start">
+              <button
+                onClick={handleExportBackup}
+                disabled={exporting}
+                className="flex items-center justify-center gap-2 bg-brand-accent hover:bg-brand-accent/90 disabled:opacity-50 text-black px-6 py-3.5 rounded-xl font-bold transition-all active:scale-95 text-sm"
+              >
+                {exporting ? (
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Download className="w-5 h-5" />
+                )}
+                تصدير نسخة احتياطية (.JSON)
+              </button>
+
+              <label className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-slate-100 border border-white/10 px-6 py-3.5 rounded-xl font-bold transition-all active:scale-95 text-sm cursor-pointer whitespace-nowrap">
+                <Upload className="w-5 h-5" />
+                <span>استيراد واستعادة البيانات (.JSON)</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportBackup}
+                  disabled={importing}
+                  className="hidden"
+                />
+              </label>
+
+              {importing && (
+                <div className="flex items-center gap-2 text-xs text-amber-400">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>جاري رفع ودمج السجلات...</span>
+                </div>
+              )}
+            </div>
+
+            {importLog && (
+              <div className="mt-6 p-4 bg-brand-input rounded-xl border border-white/5 text-right">
+                <p className="text-xs font-mono text-amber-300 leading-relaxed font-arabic whitespace-pre-wrap">{importLog}</p>
+              </div>
+            )}
           </div>
         </section>
 
