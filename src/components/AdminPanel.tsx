@@ -1,5 +1,5 @@
 import { useState, useEffect, ChangeEvent } from "react";
-import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs, query, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs, query, where, deleteDoc } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { TemplateConfig } from "../types";
 import { Save, Plus, Trash2, Settings, FileText, Key as KeyIcon, CheckCircle2, Download, Upload, Wifi, WifiOff, Database, RefreshCw, AlertCircle } from "lucide-react";
@@ -26,6 +26,16 @@ export default function AdminPanel() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importLog, setImportLog] = useState<string | null>(null);
+
+  // Database Reset state variables
+  const [resetting, setResetting] = useState(false);
+  const [resetSelected, setResetSelected] = useState({
+    contracts: true,
+    payments: true,
+    projects: false,
+    notaries: false,
+  });
+  const [resetLog, setResetLog] = useState<string | null>(null);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -217,6 +227,106 @@ export default function AdminPanel() {
     };
 
     reader.readAsText(file);
+  };
+
+  const handleCleanResetDatabase = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      alert("يجب تسجيل الدخول أولاً للقيام بهذه العملية.");
+      return;
+    }
+
+    const hasSelection = Object.values(resetSelected).some((val) => val);
+    if (!hasSelection) {
+      alert("الرجاء اختيار نوع بيانات واحد على الأقل لتصفيته.");
+      return;
+    }
+
+    const listSelectedAr = [];
+    if (resetSelected.contracts) listSelectedAr.push("العقود");
+    if (resetSelected.payments) listSelectedAr.push("دفعات الأقساط");
+    if (resetSelected.projects) listSelectedAr.push("المشاريع العقارية");
+    if (resetSelected.notaries) listSelectedAr.push("الموثقين");
+
+    const message = `تنبيه هام جداً: سيقوم هذا الإجراء بحذف كافة البيانات التالية بشكل نهائي من حسابك لتبدأ من الصفر:\n\n◀ [ ${listSelectedAr.join(" - ")} ]\n\nهل أنت متأكد تماماً وتريد المتابعة؟`;
+
+    if (!window.confirm(message)) {
+      return;
+    }
+
+    // Secondary confirmation for safety
+    if (!window.confirm("تأكيد أخير: هل أنت متأكد بنسبة 100%؟ لا يمكن استرجاع هذه البيانات بعد الحذف.")) {
+      return;
+    }
+
+    setResetting(true);
+    setResetLog("جاري بدء عملية تصفية البيانات المحددة...");
+
+    try {
+      let deletedContracts = 0;
+      let deletedPayments = 0;
+      let deletedProjects = 0;
+      let deletedNotaries = 0;
+
+      // 1. Delete contracts
+      if (resetSelected.contracts) {
+        setResetLog("جاري تصفية العقود من قاعدة البيانات...");
+        const q = query(collection(db, "contracts"), where("userId", "==", currentUser.uid));
+        const snap = await getDocs(q);
+        for (const docItem of snap.docs) {
+          await deleteDoc(doc(db, "contracts", docItem.id));
+          deletedContracts++;
+        }
+      }
+
+      // 2. Delete payments
+      if (resetSelected.payments) {
+        setResetLog("جاري تصفية دفعات الأقساط والوصولات...");
+        const q = query(collection(db, "payments"), where("userId", "==", currentUser.uid));
+        const snap = await getDocs(q);
+        for (const docItem of snap.docs) {
+          await deleteDoc(doc(db, "payments", docItem.id));
+          deletedPayments++;
+        }
+      }
+
+      // 3. Delete projects
+      if (resetSelected.projects) {
+        setResetLog("جاري تصفية المشاريع العقارية الخاصة بك...");
+        const q = query(collection(db, "projects"), where("userId", "==", currentUser.uid));
+        const snap = await getDocs(q);
+        for (const docItem of snap.docs) {
+          await deleteDoc(doc(db, "projects", docItem.id));
+          deletedProjects++;
+        }
+      }
+
+      // 4. Delete notaries
+      if (resetSelected.notaries) {
+        setResetLog("جاري تصفية الموثقين من حسابك...");
+        const q = query(collection(db, "notaries"), where("userId", "==", currentUser.uid));
+        const snap = await getDocs(q);
+        for (const docItem of snap.docs) {
+          await deleteDoc(doc(db, "notaries", docItem.id));
+          deletedNotaries++;
+        }
+      }
+
+      const logMsg = `تمت تصفية ومسح البيانات المحددة بنجاح وأمان!
+- تم حذف ${deletedContracts} عقود تجريبية.
+- تم حذف ${deletedPayments} دفعات أقساط وإيصالات دفع.
+- تم حذف ${deletedProjects} مشاريع عقارية.
+- تم حذف ${deletedNotaries} موثقين مسجلين.`;
+      
+      setResetLog(logMsg);
+      alert("تمت تصفية قاعدة البيانات بنجاح! يمكنك الآن بدء العمل الحقيقي.");
+    } catch (error: any) {
+      console.error("Database reset error:", error);
+      setResetLog(`فشل التنظيف: ${error.message || String(error)}`);
+      alert("حدث خطأ أثناء محاولة مسح البيانات. يرجى مراجعة الاتصال بالإنترنت.");
+    } finally {
+      setResetting(false);
+    }
   };
 
   useEffect(() => {
@@ -477,6 +587,114 @@ export default function AdminPanel() {
               </div>
             )}
           </div>
+        </section>
+
+        {/* Safe Database Reset System */}
+        <section className="bg-brand-card rounded-3xl p-8 shadow-2xl border border-red-500/10">
+          <div className="flex items-center gap-2 text-red-400 font-bold mb-6">
+            <Trash2 className="w-5 h-5 text-red-500" />
+            <span>تصفية قاعدة البيانات والبدء من الصفر (الوضع الآمن)</span>
+          </div>
+
+          <div className="p-6 bg-red-500/5 rounded-2xl border border-red-500/10 mb-8 text-right">
+            <h4 className="text-red-400 font-bold text-sm mb-2 flex items-center justify-start gap-2">
+              <AlertCircle className="w-5 h-5" /> تنبيه هام قبل مسح السجلات التجريبية
+            </h4>
+            <p className="text-slate-300 text-xs leading-relaxed text-justify">
+              هذه الأداة مصممة خصيصاً لمساعدتك على بدء العمل الفعلي ونقل التطبيق إلى الإنتاج بعد انتهاء مرحلة التجربة. يتيح لك هذا الإجراء مسح مستندات المبيعات التجريبية (كالأقساط والعقود) بشكل آمن من حسابك الشخصي دون الحاجة لحذف تهيئة النظام أو قوالب الطباعة وصيغ الشروط العامة، مما يضمن بقاء النظام متماسكاً وجاهزاً دون أي عطب.
+            </p>
+          </div>
+
+          <div className="mb-6">
+            <p className="text-slate-200 font-bold text-sm mb-4 text-right">اختر السجلات التجريبية التي تود تصفيتها وحذفها:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-right">
+              
+              {/* Contracts selection */}
+              <label className="flex items-center gap-3 p-4 bg-brand-input hover:bg-white/5 rounded-xl border border-white/5 cursor-pointer select-none transition-all">
+                <input
+                  type="checkbox"
+                  checked={resetSelected.contracts}
+                  onChange={(e) => setResetSelected({ ...resetSelected, contracts: e.target.checked })}
+                  className="w-5 h-5 rounded border-white/10 text-red-600 focus:ring-red-500/20 bg-brand-card"
+                />
+                <div className="flex flex-col">
+                  <span className="text-slate-200 font-bold text-sm font-arabic">العقود الإنشائية</span>
+                  <span className="text-slate-500 text-xs font-arabic">مستندات عقود البيع والشراء</span>
+                </div>
+              </label>
+
+              {/* Payments selection */}
+              <label className="flex items-center gap-3 p-4 bg-brand-input hover:bg-white/5 rounded-xl border border-white/5 cursor-pointer select-none transition-all">
+                <input
+                  type="checkbox"
+                  checked={resetSelected.payments}
+                  onChange={(e) => setResetSelected({ ...resetSelected, payments: e.target.checked })}
+                  className="w-5 h-5 rounded border-white/10 text-red-600 focus:ring-red-500/20 bg-brand-card"
+                />
+                <div className="flex flex-col">
+                  <span className="text-slate-200 font-bold text-sm font-arabic">الأقساط والوصولات</span>
+                  <span className="text-slate-500 text-xs font-arabic">كل جداول وإيصالات الدفع</span>
+                </div>
+              </label>
+
+              {/* Projects selection */}
+              <label className="flex items-center gap-3 p-4 bg-brand-input hover:bg-white/5 rounded-xl border border-white/5 cursor-pointer select-none transition-all">
+                <input
+                  type="checkbox"
+                  checked={resetSelected.projects}
+                  onChange={(e) => setResetSelected({ ...resetSelected, projects: e.target.checked })}
+                  className="w-5 h-5 rounded border-white/10 text-red-600 focus:ring-red-500/20 bg-brand-card"
+                />
+                <div className="flex flex-col">
+                  <span className="text-slate-200 font-bold text-sm font-arabic">المشاريع العقارية</span>
+                  <span className="text-slate-500 text-xs font-arabic">العمارات والبرامج السكنية</span>
+                </div>
+              </label>
+
+              {/* Notaries selection */}
+              <label className="flex items-center gap-3 p-4 bg-brand-input hover:bg-white/5 rounded-xl border border-white/5 cursor-pointer select-none transition-all">
+                <input
+                  type="checkbox"
+                  checked={resetSelected.notaries}
+                  onChange={(e) => setResetSelected({ ...resetSelected, notaries: e.target.checked })}
+                  className="w-5 h-5 rounded border-white/10 text-red-600 focus:ring-red-500/20 bg-brand-card"
+                />
+                <div className="flex flex-col">
+                  <span className="text-slate-200 font-bold text-sm font-arabic">الموثقين والشركاء</span>
+                  <span className="text-slate-500 text-xs font-arabic">أسماء وعناوين الموثقين</span>
+                </div>
+              </label>
+
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 justify-start border-t border-white/5 pt-6">
+            <button
+              onClick={handleCleanResetDatabase}
+              disabled={resetting}
+              className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 text-sm shadow-lg shadow-red-600/15"
+            >
+              {resetting ? (
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              ) : (
+                <Trash2 className="w-5 h-5" />
+              )}
+              تصفية قاعدة البيانات وحذف المحدد نهائياً
+            </button>
+
+            {resetting && (
+              <div className="flex items-center gap-2 text-xs text-red-400">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>جاري حذف السجلات من سيرفر Firebase...</span>
+              </div>
+            )}
+          </div>
+
+          {resetLog && (
+            <div className="mt-6 p-4 bg-red-950/20 rounded-xl border border-red-500/10 text-right">
+              <pre className="text-xs font-mono text-amber-300 leading-relaxed font-arabic whitespace-pre-wrap">{resetLog}</pre>
+            </div>
+          )}
         </section>
 
         {/* Security / Serials Seeding */}
