@@ -29,7 +29,6 @@
     "quill-image-resize-module-react": "^3.0.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "react-quill": "^2.0.0",
     "react-quill-new": "^3.8.3",
     "react-router-dom": "^7.15.1",
     "vite": "^6.2.3"
