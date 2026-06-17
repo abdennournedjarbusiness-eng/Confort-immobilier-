@@ -120,3 +120,82 @@
 .contract-page .bg-emerald-950 {
   background-color: #8C1932 !important;
 }
+
+.ql-editor {
+  direction: rtl;
+  text-align: right;
+  font-family: 'Cairo', 'Amiri', serif;
+  font-size: 1.125rem;
+}
+
+/* Custom Quill Font Styles */
+.ql-font-cairo {
+  font-family: 'Cairo', sans-serif !important;
+}
+.ql-font-amiri {
+  font-family: 'Amiri', serif !important;
+}
+.ql-font-inter {
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* Custom Quill Sizes */
+.ql-size-12px { font-size: 12px !important; }
+.ql-size-14px { font-size: 14px !important; }
+.ql-size-16px { font-size: 16px !important; }
+.ql-size-18px { font-size: 18px !important; }
+.ql-size-20px { font-size: 20px !important; }
+.ql-size-22px { font-size: 22px !important; }
+.ql-size-24px { font-size: 24px !important; }
+.ql-size-28px { font-size: 28px !important; }
+.ql-size-32px { font-size: 32px !important; }
+.ql-size-36px { font-size: 36px !important; }
+.ql-size-40px { font-size: 40px !important; }
+
+/* Custom Font label mappings in dropdowns */
+.template-editor .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="cairo"]::before,
+.template-editor .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="cairo"]::before {
+  content: "خط كود كنفور (Cairo)" !important;
+  font-family: 'Cairo', sans-serif;
+}
+.template-editor .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="amiri"]::before,
+.template-editor .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="amiri"]::before {
+  content: "الخط الأميري (Amiri)" !important;
+  font-family: 'Amiri', serif;
+}
+.template-editor .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="inter"]::before,
+.template-editor .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="inter"]::before {
+  content: "خط إنتر (Inter)" !important;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Fallbacks & Defaults style */
+.template-editor .ql-snow .ql-picker.ql-font .ql-picker-label::before,
+.template-editor .ql-snow .ql-picker.ql-font .ql-picker-item::before {
+  content: "الخط الافتراضي" !important;
+}
+
+/* Custom Font size label mappings in toolbar */
+.template-editor .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+.template-editor .ql-snow .ql-picker.ql-size .ql-picker-item::before {
+  content: attr(data-value) !important;
+}
+
+.template-editor .ql-toolbar {
+  background: #1A1D24;
+  border-color: rgba(255,255,255,0.1) !important;
+}
+
+.template-editor .ql-container {
+  border-color: rgba(255,255,255,0.1) !important;
+}
+
+.template-editor .ql-snow .ql-picker-label {
+  color: #f1f5f9;
+}
+.template-editor .ql-snow .ql-stroke {
+  stroke: #f1f5f9;
+}
+.template-editor .ql-snow .ql-fill {
+  fill: #f1f5f9;
+}

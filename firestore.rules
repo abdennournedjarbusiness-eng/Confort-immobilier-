@@ -91,5 +91,12 @@ service cloud.firestore {
       allow list: if false;
       allow write: if isSignedIn();
     }
+    match /templates/{templateId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin()) && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+    }
   }
 }

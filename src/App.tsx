@@ -13,6 +13,8 @@ import AdminPanel from "./components/AdminPanel";
 import ContractPrint from "./components/ContractPrint";
 import ProjectManager from "./components/ProjectManager";
 import NotaryManager from "./components/NotaryManager";
+import TemplateBuilder from "./components/TemplateBuilder";
+import { PenTool } from "lucide-react";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -180,6 +182,9 @@ export default function App() {
                 <Link to="/notaries" className="text-slate-400 hover:text-brand-accent font-medium flex items-center gap-1 transition-colors font-arabic">
                   <UserCircle2 className="w-4 h-4" /> الموثقين
                 </Link>
+                <Link to="/templates" className="text-slate-400 hover:text-brand-accent font-medium flex items-center gap-1 transition-colors font-arabic">
+                  <PenTool className="w-4 h-4" /> القوالب
+                </Link>
                 <Link to="/admin" className="text-slate-400 hover:text-brand-accent font-medium flex items-center gap-1 transition-colors font-arabic">
                   <Settings className="w-4 h-4" /> الإعدادات
                 </Link>
@@ -249,6 +254,13 @@ export default function App() {
                     <UserCircle2 className="w-5 h-5" /> إدارة الموثقين
                   </Link>
                   <Link
+                    to="/templates"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-slate-400 hover:bg-brand-accent/10 hover:text-brand-accent transition-all font-arabic"
+                  >
+                    <PenTool className="w-5 h-5" /> محرر القوالب
+                  </Link>
+                  <Link
                     to="/admin"
                     onClick={() => setIsMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-slate-400 hover:bg-brand-accent/10 hover:text-brand-accent transition-all font-arabic"
@@ -280,8 +292,9 @@ export default function App() {
             <Route path="/installments" element={<InstallmentsManager user={user} />} />
             <Route path="/projects" element={<ProjectManager />} />
             <Route path="/notaries" element={<NotaryManager />} />
+            <Route path="/templates" element={<TemplateBuilder user={user} />} />
             <Route path="/edit/:id" element={<ContractForm user={user} />} />
-            <Route path="/print/:id" element={<ContractPrint />} />
+            <Route path="/print/:id" element={<ContractPrint user={user} />} />
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

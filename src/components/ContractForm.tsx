@@ -125,6 +125,8 @@ export default function ContractForm({ user }: { user: User }) {
       if (!id && projectsList.length > 0 && !formData.project) {
         handleProjectChange(projectsList[0].name, projectsList);
       }
+    }, (error) => {
+      console.error("ContractForm projects onSnapshot error:", error);
     });
     return () => unsubscribe();
   }, [user.uid, id]);
@@ -140,6 +142,8 @@ export default function ContractForm({ user }: { user: User }) {
         ...doc.data()
       })) as Notary[];
       setNotaries(notariesList);
+    }, (error) => {
+      console.error("ContractForm notaries onSnapshot error:", error);
     });
     return () => unsubscribe();
   }, [user.uid]);

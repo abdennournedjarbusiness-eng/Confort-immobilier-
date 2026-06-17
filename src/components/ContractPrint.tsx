@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, collection, query, where, getDocs, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { Contract } from "../types";
 import { Printer, ArrowLeft, ArrowRight, FileDown as FileWord, Plus, Trash2, Coins, Save, ArrowLeftRight, Sparkles } from "lucide-react";
@@ -15,6 +15,8 @@ import html2canvas from "html2canvas";
 import FrenchContractPages from "./FrenchContractPages";
 import AnnexPages from "./AnnexPages";
 import InstallmentsScheduleAnnex from "./InstallmentsScheduleAnnex";
+import OriginalArabicContract from "./OriginalArabicContract";
+import CustomTemplateViewer from "./CustomTemplateViewer";
 import { generateReference } from "../lib/referenceGenerator";
 
 export interface GroupedClauses {
@@ -142,7 +144,7 @@ export function categorizeClauses(clausesList: string[]): GroupedClauses {
   return groups;
 }
 
-export default function ContractPrint() {
+export default function ContractPrint({ user }: { user?: any }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [contract, setContract] = useState<Contract | null>(null);
@@ -151,9 +153,26 @@ export default function ContractPrint() {
   const [loading, setLoading] = useState(true);
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<"burgundy" | "royal" | "v3">("royal");
+  const [selectedTemplate, setSelectedTemplate] = useState<"v1" | "burgundy" | "royal" | "v3" | string>("v1");
   const isRoyal = selectedTemplate === "royal";
   const [language, setLanguage] = useState<"ar" | "fr">("ar");
+
+  const [customTemplates, setCustomTemplates] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "templates"), where("userId", "==", user.uid));
+    const unsub = onSnapshot(q, (snap) => {
+      const templates: any[] = [];
+      snap.forEach(doc => {
+        templates.push({ id: doc.id, ...doc.data() });
+      });
+      setCustomTemplates(templates);
+    }, (error) => {
+      console.error("ContractPrint templates onSnapshot error:", error);
+    });
+    return () => unsub();
+  }, [user]);
 
   const [projectCodeInput, setProjectCodeInput] = useState("CNF");
   const [clientNumInput, setClientNumInput] = useState("101");
@@ -2980,6 +2999,16 @@ export default function ContractPrint() {
         {/* Template Selector */}
         <div className="flex bg-brand-card border border-white/5 p-1 rounded-2xl shadow-xl w-full sm:w-auto overflow-hidden">
           <button
+            onClick={() => setSelectedTemplate("v1")}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+              selectedTemplate === "v1"
+                ? "bg-slate-700 text-white shadow-md"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            القالب الأصلي (V1)
+          </button>
+          <button
             onClick={() => setSelectedTemplate("v3")}
             className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
               selectedTemplate === "v3"
@@ -3009,6 +3038,19 @@ export default function ContractPrint() {
           >
             القالب الملكي الفاخر
           </button>
+          {customTemplates.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setSelectedTemplate(t.id)}
+              className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+                selectedTemplate === t.id
+                  ? "bg-purple-600 text-white shadow-md"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {t.name}
+            </button>
+          ))}
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -3719,6 +3761,23 @@ export default function ContractPrint() {
               getFullProjectInfo={getFullProjectInfo}
               getMunicipality={getMunicipality}
               refData={refData}
+            />
+          ) : selectedTemplate === "v1" ? (
+            <OriginalArabicContract
+              contract={contract}
+              projectDetails={projectDetails}
+              totalReceivedReact={totalReceivedReact}
+              remainingBalanceReact={remainingBalanceReact}
+              convertToArabicWords={convertToArabicWords}
+            />
+          ) : customTemplates.find(t => t.id === selectedTemplate) ? (
+            <CustomTemplateViewer
+              templateContent={customTemplates.find(t => t.id === selectedTemplate)?.content || ""}
+              contract={contract}
+              projectDetails={projectDetails}
+              totalReceivedReact={totalReceivedReact}
+              remainingBalanceReact={remainingBalanceReact}
+              convertToArabicWords={convertToArabicWords}
             />
           ) : selectedTemplate === "v3" ? (
             <>
