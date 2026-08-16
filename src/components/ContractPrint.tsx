@@ -16,7 +16,7 @@ import FrenchContractPages from "./FrenchContractPages";
 import AnnexPages from "./AnnexPages";
 import InstallmentsScheduleAnnex from "./InstallmentsScheduleAnnex";
 import OriginalArabicContract from "./OriginalArabicContract";
-import CustomTemplateViewer from "./CustomTemplateViewer";
+import WordTemplateGenerator from "./WordTemplateGenerator";
 import { generateReference } from "../lib/referenceGenerator";
 
 export interface GroupedClauses {
@@ -790,9 +790,8 @@ export default function ContractPrint({ user }: { user?: any }) {
             page-break-after: always !important;
             page-break-inside: avoid !important;
           }
-          .contract-page, .contract-page * {
-            line-height: 1.15 !important;
-            color: #000000 !important;
+          .contract-page {
+            color: #000000;
           }
           .contract-page .ref-segment-proj {
             color: ${isRoyal ? '#8C1932' : '#1e293b'} !important;
@@ -3771,13 +3770,10 @@ export default function ContractPrint({ user }: { user?: any }) {
               convertToArabicWords={convertToArabicWords}
             />
           ) : customTemplates.find(t => t.id === selectedTemplate) ? (
-            <CustomTemplateViewer
-              templateContent={customTemplates.find(t => t.id === selectedTemplate)?.content || ""}
+            <WordTemplateGenerator
+              template={customTemplates.find(t => t.id === selectedTemplate)}
               contract={contract}
               projectDetails={projectDetails}
-              totalReceivedReact={totalReceivedReact}
-              remainingBalanceReact={remainingBalanceReact}
-              convertToArabicWords={convertToArabicWords}
             />
           ) : selectedTemplate === "v3" ? (
             <>
@@ -4374,7 +4370,7 @@ export default function ContractPrint({ user }: { user?: any }) {
             {/* Footer for Page 1 */}
             <div className="contract-footer z-10">
               <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
-              <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 1 من 7</div>
+              <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 1 من 6</div>
             </div>
           </div>
 
@@ -4446,7 +4442,7 @@ export default function ContractPrint({ user }: { user?: any }) {
           {/* Footer for Page 2 */}
           <div className="contract-footer z-10">
             <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
-            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 2 من 7</div>
+            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 2 من 6</div>
           </div>
         </div>
 
@@ -4551,7 +4547,7 @@ export default function ContractPrint({ user }: { user?: any }) {
           {/* Footer for Page 3 */}
           <div className="contract-footer z-10">
             <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
-            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 3 من 7</div>
+            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 3 من 6</div>
           </div>
         </div>
 
@@ -4560,8 +4556,8 @@ export default function ContractPrint({ user }: { user?: any }) {
           {isRoyal && (
             <div className="absolute inset-4 border-2 border-double border-amber-600/20 pointer-events-none rounded-2xl z-0" />
           )}
-          <div className="py-4 space-y-4 flex-grow text-base z-10 relative">
-            <div className="text-center mb-4">
+          <div className="py-2 space-y-3 flex-grow text-base z-10 relative">
+            <div className="text-center mb-2">
               <h2 className={`text-xl font-bold border-b-2 inline-block px-12 pb-0.5 ${
                 isRoyal ? 'border-emerald-800 text-emerald-950' : 'border-black'
               }`}>آجال التسليم</h2>
@@ -4570,59 +4566,45 @@ export default function ContractPrint({ user }: { user?: any }) {
               ــــ يتعهد المرقي العقاري بتشييد الشقة للمشتري خلال مدة {contract.duration} ويكون التسليم بعد الانتهاء من كامل المشروع بإمضاء محضر التسليم.
             </p>
 
-            <div className="text-center my-4">
+            <div className="text-center my-2">
               <h2 className={`text-xl font-bold border-b-2 inline-block px-12 pb-0.5 ${
                 isRoyal ? 'border-emerald-800 text-emerald-950' : 'border-black'
               }`}>التصريحات</h2>
             </div>
-            <p className="leading-relaxed text-justify mb-4">
+            <p className="leading-relaxed text-justify mb-2">
               - صرح المرقي العقاري بأنه يشيد الشقة السالفة الذكر <span className="font-bold">{contract.isFinished ? "جاهزة" : "نصف جاهزة"}</span> مع التزامه بكامل الضمانات العادية وكذا احترام التصاميم والمخططات المتفق عليها وأصول الفن المتعارف عليها في هذا المجال، وبالأشغال النهائية تركيب النظام الكهربائي بدون تجهيزات مع كميرا المراقبة + مصعد كهربائي + خزان مائي .
             </p>
 
             {!contract.isFinished && (
-              <p className="leading-relaxed text-justify mb-4">
+              <p className="leading-relaxed text-justify mb-2">
                 - بما أن الوحدة العقارية موضوع هذا العقد تُسلّم في حالة نصف جاهزة، يلتزم المشتري التزاماً صريحاً وقاطعاً بإتمام كافة أشغال التهيئة والتشطيبات الداخلية الخاصة بشقته في أجل أقصاه ستة (06) أشهر، تحتسب ابتداءً من تاريخ التوقيع على محضر التسليم النهائي للعقار. ويتحمل المشتري وحده طوال هذه المدة المسؤولية الكاملة عن سلامة الأشغال، ونظافة المحيط، وعدم إلحاق أي ضرر بالهيكل الإنشائي أو بالأجزاء المشتركة للعمارة.
               </p>
             )}
 
-            <p className="leading-relaxed text-justify mb-4">
+            <p className="leading-relaxed text-justify mb-3">
               صرح المشتري بأنه عاين المكان محل التعاقد (الشقة وكذا المشروع) واطلع على التصاميم والمقاطع ومخطط الكتلة (Plan de masse) ومخططات البناية والتجهيزات المتعلقة بها ورضي بها.
             </p>
-          </div>
-          
-          {/* Footer for Page 4 */}
-          <div className="contract-footer z-10">
-            <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
-            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 4 من 7</div>
-          </div>
-        </div>
 
-        {/* PAGE 5 */}
-        <div className="contract-page rtl font-arabic relative flex flex-col">
-          {isRoyal && (
-            <div className="absolute inset-4 border-2 border-double border-amber-600/20 pointer-events-none rounded-2xl z-0" />
-          )}
-          <div className="py-2 flex-grow z-10 relative">
-            <div className="text-center mb-4">
+            <div className="text-center my-2">
               <h2 className={`text-xl font-bold border-b-2 inline-block px-12 pb-1 ${
                 isRoyal ? 'border-emerald-800 text-emerald-950 font-bold' : 'border-black'
               }`}>الالتزامات والحقوق</h2>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* 1. الالتزامات العامة */}
               {groupedClauses.general.length > 0 && (
                 <div>
-                  <h3 className={`text-xs md:text-sm font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
+                  <h3 className={`text-base font-bold border-r-4 pr-2 mb-1.5 py-0.5 rounded-l ${
                     isRoyal 
                       ? 'text-emerald-900 border-r-emerald-800 bg-emerald-50/10' 
                       : 'text-red-800 border-r-red-800 bg-red-50/20'
                   }`}>
                     الالتزامات العامة
                   </h3>
-                  <ul className="list-none space-y-1.5 pr-2">
+                  <ul className="list-none space-y-1 pr-2">
                     {groupedClauses.general.map((clause: string, idx: number) => (
-                      <li key={idx} className="flex gap-2 text-xs md:text-sm text-justify leading-relaxed">
+                      <li key={idx} className="flex gap-2 text-base text-justify leading-relaxed">
                         <span className={`font-bold shrink-0 ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>
                         <span>{clause}</span>
                       </li>
@@ -4634,16 +4616,16 @@ export default function ContractPrint({ user }: { user?: any }) {
               {/* 2. شروط الفسخ والتراجع */}
               {groupedClauses.termination.length > 0 && (
                 <div>
-                  <h3 className={`text-xs md:text-sm font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
+                  <h3 className={`text-base font-bold border-r-4 pr-2 mb-1.5 py-0.5 rounded-l ${
                     isRoyal 
                       ? 'text-emerald-900 border-r-emerald-800 bg-emerald-50/10' 
                       : 'text-red-800 border-r-red-800 bg-red-50/20'
                   }`}>
                     شروط الفسخ والتراجع
                   </h3>
-                  <ul className="list-none space-y-1.5 pr-2">
+                  <ul className="list-none space-y-1 pr-2">
                     {groupedClauses.termination.map((clause: string, idx: number) => (
-                      <li key={idx} className="flex gap-2 text-xs md:text-sm text-justify leading-relaxed">
+                      <li key={idx} className="flex gap-2 text-base text-justify leading-relaxed">
                         <span className={`font-bold shrink-0 ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>
                         <span>{clause}</span>
                       </li>
@@ -4655,16 +4637,16 @@ export default function ContractPrint({ user }: { user?: any }) {
               {/* 3. حالة توقف المشروع أو الإفلاس */}
               {groupedClauses.halting.length > 0 && (
                 <div>
-                  <h3 className={`text-xs md:text-sm font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
+                  <h3 className={`text-base font-bold border-r-4 pr-2 mb-1.5 py-0.5 rounded-l ${
                     isRoyal 
                       ? 'text-emerald-900 border-r-emerald-800 bg-emerald-50/10' 
                       : 'text-red-800 border-r-red-800 bg-red-50/20'
                   }`}>
                     حالة توقف المشروع أو الإفلاس
                   </h3>
-                  <ul className="list-none space-y-1.5 pr-2">
+                  <ul className="list-none space-y-1 pr-2">
                     {groupedClauses.halting.map((clause: string, idx: number) => (
-                      <li key={idx} className="flex gap-2 text-xs md:text-sm text-justify leading-relaxed">
+                      <li key={idx} className="flex gap-2 text-base text-justify leading-relaxed">
                         <span className={`font-bold shrink-0 ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>
                         <span>{clause}</span>
                       </li>
@@ -4675,14 +4657,14 @@ export default function ContractPrint({ user }: { user?: any }) {
             </div>
           </div>
           
-          {/* Footer for Page 5 */}
+          {/* Footer for Page 4 */}
           <div className="contract-footer z-10">
             <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
-            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 5 من 7</div>
+            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 4 من 6</div>
           </div>
         </div>
 
-        {/* PAGE 6 */}
+        {/* PAGE 5 */}
         <div className="contract-page rtl font-arabic relative flex flex-col">
           {isRoyal && (
             <div className="absolute inset-4 border-2 border-double border-amber-600/20 pointer-events-none rounded-2xl z-0" />
@@ -4698,7 +4680,7 @@ export default function ContractPrint({ user }: { user?: any }) {
               {/* 4. التنازل ووفاة أحد الطرفين */}
               {groupedClauses.assignment.length > 0 && (
                 <div>
-                  <h3 className={`text-xs md:text-sm font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
+                  <h3 className={`text-base font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
                     isRoyal 
                       ? 'text-emerald-900 border-r-emerald-800 bg-emerald-50/10' 
                       : 'text-red-800 border-r-red-800 bg-red-50/20'
@@ -4707,7 +4689,7 @@ export default function ContractPrint({ user }: { user?: any }) {
                   </h3>
                   <ul className="list-none space-y-1.5 pr-2">
                     {groupedClauses.assignment.map((clause: string, idx: number) => (
-                      <li key={idx} className="flex gap-2 text-xs md:text-sm text-justify leading-relaxed">
+                      <li key={idx} className="flex gap-2 text-base text-justify leading-relaxed">
                         <span className={`font-bold shrink-0 ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>
                         <span>{clause}</span>
                       </li>
@@ -4719,7 +4701,7 @@ export default function ContractPrint({ user }: { user?: any }) {
               {/* 5. الوضع القانوني للمشروع */}
               {groupedClauses.legalStatus.length > 0 && (
                 <div>
-                  <h3 className={`text-xs md:text-sm font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
+                  <h3 className={`text-base font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
                     isRoyal 
                       ? 'text-emerald-900 border-r-emerald-800 bg-emerald-50/10' 
                       : 'text-red-800 border-r-red-800 bg-red-50/20'
@@ -4728,7 +4710,7 @@ export default function ContractPrint({ user }: { user?: any }) {
                   </h3>
                   <ul className="list-none space-y-1.5 pr-2">
                     {groupedClauses.legalStatus.map((clause: string, idx: number) => (
-                      <li key={idx} className="flex gap-2 text-xs md:text-sm text-justify leading-relaxed">
+                      <li key={idx} className="flex gap-2 text-base text-justify leading-relaxed">
                         <span className={`font-bold shrink-0 ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>
                         <span>{clause}</span>
                       </li>
@@ -4740,7 +4722,7 @@ export default function ContractPrint({ user }: { user?: any }) {
               {/* 6. الضرائب والرسوم */}
               {groupedClauses.taxes.length > 0 && (
                 <div>
-                  <h3 className={`text-xs md:text-sm font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
+                  <h3 className={`text-base font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
                     isRoyal 
                       ? 'text-emerald-900 border-r-emerald-800 bg-emerald-50/10' 
                       : 'text-red-800 border-r-red-800 bg-red-50/20'
@@ -4749,7 +4731,7 @@ export default function ContractPrint({ user }: { user?: any }) {
                   </h3>
                   <ul className="list-none space-y-1.5 pr-2">
                     {groupedClauses.taxes.map((clause: string, idx: number) => (
-                      <li key={idx} className={clause.endsWith(":") ? "text-justify font-bold leading-relaxed mb-2 list-none pr-0" : "flex gap-2 text-justify leading-relaxed pr-2"}>
+                      <li key={idx} className={clause.endsWith(":") ? "text-justify font-bold leading-relaxed mb-2 list-none pr-0 text-base" : "flex gap-2 text-justify leading-relaxed pr-2 text-base"}>
                         {!clause.endsWith(":") && <span className={`font-bold shrink-0 ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>}
                         <span>{clause}</span>
                       </li>
@@ -4761,7 +4743,7 @@ export default function ContractPrint({ user }: { user?: any }) {
               {/* 7. تسوية النزاعات */}
               {groupedClauses.disputes.length > 0 && (
                 <div>
-                  <h3 className={`text-xs md:text-sm font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
+                  <h3 className={`text-base font-bold border-r-4 pr-2 mb-2 py-0.5 rounded-l ${
                     isRoyal 
                       ? 'text-emerald-900 border-r-emerald-800 bg-emerald-50/10' 
                       : 'text-red-800 border-r-red-800 bg-red-50/20'
@@ -4770,7 +4752,7 @@ export default function ContractPrint({ user }: { user?: any }) {
                   </h3>
                   <ul className="list-none space-y-1.5 pr-2">
                     {groupedClauses.disputes.map((clause: string, idx: number) => (
-                      <li key={idx} className="flex gap-2 text-xs md:text-sm text-justify leading-relaxed">
+                      <li key={idx} className="flex gap-2 text-base text-justify leading-relaxed">
                         <span className={`font-bold shrink-0 ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>
                         <span>{clause}</span>
                       </li>
@@ -4781,15 +4763,15 @@ export default function ContractPrint({ user }: { user?: any }) {
             </div>
 
             <div className="mt-2 space-y-2">
-            <p className="leading-relaxed text-justify text-xs md:text-sm">
+            <p className="leading-relaxed text-justify text-base">
               تعتبر هذه الاتفاقية ملحقاً تقنياً ومالياً وجزءاً لا يتجزأ من عقد الوعد بالبيع الرسمي المبرم بين الطرفين وتلحق به وتسري عليها كافة آثاره القانونية وشروط الإثبات الرسمية.
             </p>
 
               <div className={`p-2 border rounded-xl ${
                 isRoyal ? 'border-emerald-800/10 bg-emerald-50/10' : 'border-black/10 bg-slate-50/50'
               }`}>
-                 <p className={`font-bold mb-1 text-xs md:text-sm pr-1 ${isRoyal ? 'text-emerald-900' : 'text-red-800'}`}>الوثائق المرفقة:</p>
-                 <ul className="space-y-0.5 text-xs md:text-sm list-none pr-1">
+                 <p className={`font-bold mb-1 text-base pr-1 ${isRoyal ? 'text-emerald-900' : 'text-red-800'}`}>الوثائق المرفقة:</p>
+                 <ul className="space-y-0.5 text-base list-none pr-1">
                    <li className="flex items-start gap-2">
                      <span className={`font-bold ${isRoyal ? 'text-amber-700' : 'text-red-800'}`}>•</span>
                      <span>(مخطط الكتلة) Plan de masse</span>
@@ -4811,14 +4793,14 @@ export default function ContractPrint({ user }: { user?: any }) {
             </div>
           </div>
           
-          {/* Footer for Page 6 */}
+          {/* Footer for Page 5 */}
           <div className="contract-footer z-10">
             <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
-            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 6 من 7</div>
+            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 5 من 6</div>
           </div>
         </div>
 
-        {/* PAGE 7 */}
+        {/* PAGE 6 */}
         <div className="contract-page rtl font-arabic relative flex flex-col">
           {isRoyal && (
             <div className="absolute inset-4 border-2 border-double border-amber-600/20 pointer-events-none rounded-2xl z-0" />
@@ -4862,10 +4844,10 @@ export default function ContractPrint({ user }: { user?: any }) {
             </div>
           </div>
           
-          {/* Footer for Page 7 */}
+          {/* Footer for Page 6 */}
           <div className="contract-footer z-10">
             <div className="h-[3px] w-full mb-2" style={isRoyal ? { clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)', backgroundColor: '#8C1932' } : { clipPath: 'polygon(0 0, 100% 0, 98% 100%, 0% 100%)', backgroundColor: '#991b1b' }}></div>
-            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 7 من 7</div>
+            <div className="text-xs font-sans text-slate-500 font-bold tracking-widest text-left">الصفحة 6 من 6</div>
           </div>
         </div>
       </>

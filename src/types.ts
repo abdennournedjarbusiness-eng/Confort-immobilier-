@@ -48,6 +48,8 @@ export interface Contract {
   notaryFee?: number;
   notaryFeeArabic?: string;
   promiseOfSaleDate?: string;
+  proxyName?: string;
+  proxyIdNumber?: string;
   createdAt: any;
   updatedAt: any;
   userId: string;

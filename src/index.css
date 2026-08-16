@@ -39,9 +39,23 @@
     flex-direction: column !important;
   }
 
-  .contract-page, .contract-page * {
-    line-height: 1.15 !important;
+  /* For standard contract page child elements, keep clear contrast and natural typographic line-heights */
+  .contract-page:not(.custom-contract-page) {
+    color: #000000;
+  }
+
+  .contract-page:not(.custom-contract-page):not(.v3-page) * {
+    color: #000000;
+  }
+
+  /* Custom Contract Pages (from Template Builder) - allow custom line heights and dynamic text colors */
+  .contract-page.custom-contract-page {
+    line-height: 1.8 !important; /* Elegant spacious default */
     color: #000000 !important;
+  }
+
+  .contract-page.custom-contract-page * {
+    /* Permit custom line-height and color override inside elements */
   }
 
   .contract-footer {
